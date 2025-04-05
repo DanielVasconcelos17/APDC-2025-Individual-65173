@@ -12,25 +12,28 @@ public class AuthToken {
 	public String tokenID;
 	public long creationData;
 	public long expirationData;
-	private String role;
-	private String checker;
+	public String role;
+	public String checker;
 
-	public AuthToken() {
-
-	}
+	public AuthToken() {}
 	
 	public AuthToken(String username, String role) {
 		this.username = username;
 		this.tokenID = UUID.randomUUID().toString();
 		this.creationData = System.currentTimeMillis();
-		this.expirationData = this.creationData - EXPIRATION_TIME;
+		this.expirationData = this.creationData + EXPIRATION_TIME;
 		this.role = role;
-		this.checker = DigestUtils.sha512Hex(username+creationData+expirationData);
+		this.checker = createChecker();
+	}
+
+	private String createChecker(){
+		return DigestUtils.sha512Hex(username+creationData+expirationData);
 	}
 
 	public boolean isValid() {
-		// Verificação no caso do token expirar
-		return System.currentTimeMillis() <= expirationData;
+		String expectedChecker = createChecker();
+		return System.currentTimeMillis() <= expirationData
+				&& checker.equals(expectedChecker);
 	}
 	
 }

@@ -57,6 +57,13 @@ public class LoginResource {
     private static final String USER_LOGIN_TIME = "user_login_time";
     private static final String USER_LOGIN_ROLE = "user_role";
 
+    private static final String TOKEN_CREATION_DATA = "token_creationData";
+    private static final String TOKEN_EXPIRATION_DATA = "token_expirationData";
+    private static final String TOKEN_CHECKER = "token_checker";
+    private static final String TOKEN_USERNAME = "token_username";
+    private static final String TOKEN_ROLE = "token_role";
+
+
     private static final Logger LOG = Logger.getLogger(LoginResource.class.getName());
     private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
     private static final KeyFactory userKeyFactory = datastore.newKeyFactory().setKind("User");
@@ -73,29 +80,49 @@ public class LoginResource {
     public Response doLogin(LoginData data) {
         LOG.fine(LOG_MESSAGE_LOGIN_ATTEMP + data.username);
 
-        Key userKey = userKeyFactory.newKey(data.username);
-        Entity user = datastore.get(userKey);
+        Transaction txn = datastore.newTransaction();
+        try {
+            Key userKey = userKeyFactory.newKey(data.username);
+            Entity user = datastore.get(userKey);
 
-        if (user != null) {
-            String hashedPWD = user.getString(USER_PWD);
-            if (hashedPWD.equals(DigestUtils.sha512Hex(data.password))) {
-                String userRole = user.getString(USER_LOGIN_ROLE);
-                AuthToken token = new AuthToken(data.username, userRole);
-				// Criação de um objeto para pagina de boas-vindas
-				LoginResponse response = new LoginResponse(token, data.username, userRole);
-				LOG.info(LOG_MESSAGE_LOGIN_SUCCESSFUL + data.username);
-                return Response.ok(g.toJson(response)).build();
-            } else {
-                LOG.warning(LOG_MESSAGE_WRONG_PASSWORD + data.username);
-                return Response.status(Status.FORBIDDEN)
-                        .entity(MESSAGE_INVALID_PASSWORD)
-                        .build();
+            if (user == null) {
+                txn.rollback();
+                LOG.warning(LOG_MESSAGE_UNKNOW_USER + data.username);
+                return Response.status(Status.FORBIDDEN).entity(MESSAGE_INVALID_USERNAME).build();
             }
-        } else {
-            LOG.warning(LOG_MESSAGE_UNKNOW_USER + data.username);
-            return Response.status(Status.FORBIDDEN)
-                    .entity(MESSAGE_INVALID_USERNAME)
+
+            String hashedPWD = user.getString(USER_PWD);
+            if (!hashedPWD.equals(DigestUtils.sha512Hex(data.password))) {
+                txn.rollback();
+                LOG.warning(LOG_MESSAGE_WRONG_PASSWORD + data.username);
+                return Response.status(Status.FORBIDDEN).entity(MESSAGE_INVALID_PASSWORD).build();
+            }
+
+            String userRole = user.getString(USER_LOGIN_ROLE);
+            AuthToken token = new AuthToken(data.username, userRole);
+
+            // Guardar o token
+            Key tokenKey = datastore.newKeyFactory().setKind("Token").newKey(token.tokenID);
+            Entity tokenEntity = Entity.newBuilder(tokenKey)
+                    .set(TOKEN_USERNAME, data.username)
+                    .set(TOKEN_ROLE, userRole)
+                    .set(TOKEN_CREATION_DATA, token.creationData)
+                    .set(TOKEN_EXPIRATION_DATA, token.expirationData)
+                    .set(TOKEN_CHECKER, token.checker)
                     .build();
+            txn.put(tokenEntity);
+            txn.commit();
+            LoginResponse response = new LoginResponse(token, data.username, userRole);
+            LOG.info(LOG_MESSAGE_LOGIN_SUCCESSFUL + data.username);
+            return Response.ok(g.toJson(response)).build();
+
+        } catch (Exception e) {
+            txn.rollback();
+            LOG.severe("Erro durante login: " + e.getMessage());
+            return Response.status(Status.INTERNAL_SERVER_ERROR).build();
+        }finally {
+            if(txn.isActive())
+                txn.rollback();
         }
     }
 
