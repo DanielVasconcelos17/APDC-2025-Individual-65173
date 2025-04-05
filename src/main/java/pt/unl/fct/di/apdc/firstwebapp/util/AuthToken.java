@@ -23,6 +23,7 @@ public class AuthToken {
 	}
 
 	public boolean isValid() {
+		// Verificação no caso do token expirar
 		return System.currentTimeMillis() <= expirationData;
 	}
 	
