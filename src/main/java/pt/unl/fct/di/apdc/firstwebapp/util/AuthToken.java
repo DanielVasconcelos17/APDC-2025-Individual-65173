@@ -10,7 +10,7 @@ public class AuthToken {
 	public String tokenID;
 	public long creationData;
 	public long expirationData;
-	
+
 	public AuthToken() {
 
 	}
@@ -20,6 +20,10 @@ public class AuthToken {
 		this.tokenID = UUID.randomUUID().toString();
 		this.creationData = System.currentTimeMillis();
 		this.expirationData = this.creationData - EXPIRATION_TIME;
+	}
+
+	public boolean isValid() {
+		return System.currentTimeMillis() <= expirationData;
 	}
 	
 }
