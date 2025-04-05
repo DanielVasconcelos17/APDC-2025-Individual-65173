@@ -1,5 +1,7 @@
 package pt.unl.fct.di.apdc.firstwebapp.util;
 
+import org.apache.commons.codec.digest.DigestUtils;
+
 import java.util.UUID;
 
 public class AuthToken {
@@ -10,16 +12,20 @@ public class AuthToken {
 	public String tokenID;
 	public long creationData;
 	public long expirationData;
+	private String role;
+	private String checker;
 
 	public AuthToken() {
 
 	}
 	
-	public AuthToken(String username) {
+	public AuthToken(String username, String role) {
 		this.username = username;
 		this.tokenID = UUID.randomUUID().toString();
 		this.creationData = System.currentTimeMillis();
 		this.expirationData = this.creationData - EXPIRATION_TIME;
+		this.role = role;
+		this.checker = DigestUtils.sha512Hex(username+creationData+expirationData);
 	}
 
 	public boolean isValid() {

@@ -1,14 +1,13 @@
 package pt.unl.fct.di.apdc.firstwebapp.types;
 
-public enum ProfileState {
+public enum ProfileType {
 
-    ATIVADA("ACTIVATE"),
-    SUSPENSA("SUSPENDED"),
-    DESATIVADA("DEACTIVATE");
+    PRIVATE("private"),
+    PUBLIC("public");
 
     private final String type;
 
-    ProfileState(String type) {
+    ProfileType(String type) {
         this.type = type;
     }
 

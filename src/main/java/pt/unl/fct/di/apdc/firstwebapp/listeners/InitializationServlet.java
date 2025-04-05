@@ -10,6 +10,7 @@ import jakarta.servlet.ServletContextListener;
 import jakarta.servlet.annotation.WebListener;
 import org.apache.commons.codec.digest.DigestUtils;
 import pt.unl.fct.di.apdc.firstwebapp.types.ProfileState;
+import pt.unl.fct.di.apdc.firstwebapp.types.ProfileType;
 import pt.unl.fct.di.apdc.firstwebapp.types.Role;
 
 //Esta classe tem a responsabilidade de registar o "root" no datastore quando a app dá deploy
@@ -25,7 +26,7 @@ public class InitializationServlet implements ServletContextListener {
     private static final String ROOT_EMAIL = "root.admin@fct.unl.pt";
     private static final String ROOT_FULLNAME = "Root Administrator";
     private static final String ROOT_PHONE = "+351000000000";
-    private static final String ROOT_PROFILE = "privado";
+    private static final String ROOT_PROFILE = ProfileType.PRIVATE.getType();
 
 
     @Override

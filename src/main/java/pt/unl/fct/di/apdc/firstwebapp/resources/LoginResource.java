@@ -61,18 +61,24 @@ public class LoginResource {
 
 	private final Gson g = new Gson();
 
-	public LoginResource() {
-
-	}
+	public LoginResource() {}
 
 	@POST
 	@Path("/")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response doLogin(){
+			return Response.ok().build();
+	}
+
+	@POST
+	@Path("/v")
 	@Consumes(MediaType.APPLICATION_JSON)
 	public Response doLogin(LoginData data) {
 		LOG.fine(LOG_MESSAGE_LOGIN_ATTEMP + data.username);
 
 		if (data.username.equals("user") && data.password.equals("password")) {
-			AuthToken at = new AuthToken(data.username);
+			AuthToken at = new AuthToken(data.username, "role");
 			return Response.ok(g.toJson(at)).build();
 		}
 		return Response.status(Status.FORBIDDEN)
@@ -104,7 +110,7 @@ public class LoginResource {
 			String hashedPWD = (String) user.getString(USER_PWD);
 			if (hashedPWD.equals(DigestUtils.sha512Hex(data.password))) {
 				LOG.info(LOG_MESSAGE_LOGIN_SUCCESSFUL + data.username);
-				AuthToken token = new AuthToken(data.username);
+				AuthToken token = new AuthToken(data.username, "role");
 				return Response.ok(g.toJson(token)).build();
 			} else {
 				LOG.warning(LOG_MESSAGE_WRONG_PASSWORD + data.username);
@@ -138,7 +144,7 @@ public class LoginResource {
 						.build();
 				datastore.update(user);
 				LOG.info(LOG_MESSAGE_LOGIN_SUCCESSFUL + data.username);
-				AuthToken token = new AuthToken(data.username);
+				AuthToken token = new AuthToken(data.username, "role");
 				return Response.ok(g.toJson(token)).build();
 			} else {
 				LOG.warning(LOG_MESSAGE_WRONG_PASSWORD + data.username);
@@ -176,7 +182,7 @@ public class LoginResource {
 						.build();
 				datastore.put(userLog);
 				LOG.info(LOG_MESSAGE_LOGIN_SUCCESSFUL + data.username);
-				AuthToken token = new AuthToken(data.username);
+				AuthToken token = new AuthToken(data.username, "role");
 				return Response.ok(g.toJson(token)).build();
 			} else {
 				LOG.warning(LOG_MESSAGE_WRONG_PASSWORD + data.username);
@@ -264,7 +270,7 @@ public class LoginResource {
 				txn.put(log, ustats);
 				txn.commit();
 				// Return token
-				AuthToken token = new AuthToken(data.username);
+				AuthToken token = new AuthToken(data.username, "role");
 				LOG.info(LOG_MESSAGE_LOGIN_SUCCESSFUL + data.username);
 				return Response.ok(g.toJson(token)).build();
 			} else {

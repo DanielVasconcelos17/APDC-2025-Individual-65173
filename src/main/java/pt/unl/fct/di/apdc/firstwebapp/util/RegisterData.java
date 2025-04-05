@@ -1,5 +1,7 @@
 package pt.unl.fct.di.apdc.firstwebapp.util;
 
+import pt.unl.fct.di.apdc.firstwebapp.types.ProfileType;
+
 import java.util.regex.Pattern;
 
 public class RegisterData {
@@ -65,7 +67,8 @@ public class RegisterData {
     }
 
     public boolean isValidProfileType(){
-        return profile.equals("público") || profile.equals("privado");
+        return profile.equals(ProfileType.PUBLIC.getType())
+                || profile.equals(ProfileType.PRIVATE.getType());
     }
 
     public boolean isValidPassword() {
