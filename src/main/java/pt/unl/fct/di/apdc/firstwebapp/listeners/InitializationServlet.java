@@ -46,7 +46,7 @@ public class InitializationServlet implements ServletContextListener {
                         .set("user_phone", ROOT_PHONE)
                         .set("user_profile", ROOT_PROFILE)
                         .set("user_role", Role.ADMIN.getType())
-                        .set("user_state", ProfileState.ATIVADA.getType())
+                        .set("user_state", ProfileState.ACTIVATE.getType())
                         .set("user_creation_time", Timestamp.now())
                         .build();
                 txn.put(rootUser);

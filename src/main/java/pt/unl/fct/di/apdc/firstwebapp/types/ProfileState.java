@@ -2,9 +2,9 @@ package pt.unl.fct.di.apdc.firstwebapp.types;
 
 public enum ProfileState {
 
-    ATIVADA("ACTIVATE"),
-    SUSPENSA("SUSPENDED"),
-    DESATIVADA("DEACTIVATE");
+    ACTIVATE("ACTIVATE"),
+    SUSPENDED("SUSPENDED"),
+    DEACTIVATE("DEACTIVATE");
 
     private final String type;
 

@@ -81,7 +81,7 @@ public class RegisterResource {
 					.set("user_phone", data.phone)
 					.set("user_profile", data.profile)
 					.set("user_role", Role.ENDUSER.getType())
-					.set("user_state", ProfileState.DESATIVADA.getType())
+					.set("user_state", ProfileState.DEACTIVATE.getType())
 					.set("user_creation_time", Timestamp.now());
 
 			// Caso forneçam os "atributos opcionais"
