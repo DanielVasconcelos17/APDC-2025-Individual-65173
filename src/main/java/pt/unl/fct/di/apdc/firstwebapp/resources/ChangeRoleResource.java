@@ -1,6 +1,7 @@
 package pt.unl.fct.di.apdc.firstwebapp.resources;
 
 import com.google.cloud.datastore.*;
+import com.google.gson.Gson;
 import jakarta.ws.rs.core.Response.Status;
 
 import jakarta.ws.rs.Consumes;
@@ -22,17 +23,18 @@ public class ChangeRoleResource {
 
     private static final String TOKEN_ROLE = "token_role";
 
-
     private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
+    private final Gson g = new Gson();
 
     @POST
     @Path("/")
     @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
     public Response changeRole(ChangeRoleData data){
         // Validação do token
         if (!TokenValidator.isValidToken(data.tokenID)) {
             return Response.status(Response.Status.FORBIDDEN)
-                    .entity("Invalid or expired token.").build();
+                    .entity(g.toJson("Invalid or expired token.")).build();
         }
 
         // Obter o role do user que está a fazer o pedido
@@ -43,8 +45,8 @@ public class ChangeRoleResource {
         if(!ChangeRoleData.isValidRole(requesterRole)
                 || !ChangeRoleData.isValidRole(data.newRole))
             return Response.status(Status.FORBIDDEN)
-                    .entity("Not valid role has to be " +
-                            "one of these (ENDUSER, PARTNER, ADMIN, BACKOFFICE)")
+                    .entity(g.toJson("Not valid role has to be " +
+                            "one of these (ENDUSER, PARTNER, ADMIN, BACKOFFICE)"))
                     .build();
 
         // Verificar se o o user target existe
@@ -53,7 +55,7 @@ public class ChangeRoleResource {
 
         if(targetEntity == null)
             return Response.status(Status.NOT_FOUND)
-                    .entity("Target user not found.")
+                    .entity(g.toJson("Target user not found."))
                     .build();
 
         // Obter a role do user target
@@ -62,7 +64,7 @@ public class ChangeRoleResource {
         // Verificar permissoes
         if(requesterRole.equals(Role.ENDUSER.getType()))
             return Response.status(Status.FORBIDDEN)
-                    .entity("ENDUSER cannot change roles.")
+                    .entity(g.toJson("ENDUSER cannot change roles."))
                     .build();
 
         // Verifica se o user que faz o pedido de mudança é BACKOFFICE
@@ -72,13 +74,14 @@ public class ChangeRoleResource {
             if(!targetUserRole.equals(Role.PARTNER.getType())
                     && !targetUserRole.equals(Role.ENDUSER.getType())){
                 return Response.status(Status.FORBIDDEN)
-                        .entity("BACKOFFICE can only change ENDUSER to PARTNER and vice-versa.")
+                        .entity(g.toJson("BACKOFFICE can only change" +
+                                " ENDUSER to PARTNER and vice-versa."))
                         .build();
             }
             if(!data.newRole.equals(Role.PARTNER.getType())
                     && !data.newRole.equals(Role.ENDUSER.getType())){
-                return Response.status(Response.Status.FORBIDDEN)
-                        .entity("BACKOFFICE can only assign ENDUSER or PARTNER roles.")
+                return Response.status(Status.FORBIDDEN)
+                        .entity(g.toJson("BACKOFFICE can only assign ENDUSER or PARTNER roles."))
                         .build();
             }
         }
@@ -88,8 +91,7 @@ public class ChangeRoleResource {
                     .set(USER_ROLE, data.newRole).build();
             txn.put(updateUser);
             txn.commit();
-            return Response.ok()
-                    .entity("Role changed successfully to: " + data.newRole)
+            return Response.ok(g.toJson("Role changed successfully to: " + data.newRole))
                     .build();
         }catch (Exception e){
             txn.rollback();

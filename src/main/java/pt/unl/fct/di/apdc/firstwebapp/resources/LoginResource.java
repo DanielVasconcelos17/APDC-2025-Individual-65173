@@ -88,14 +88,16 @@ public class LoginResource {
             if (user == null) {
                 txn.rollback();
                 LOG.warning(LOG_MESSAGE_UNKNOW_USER + data.username);
-                return Response.status(Status.FORBIDDEN).entity(MESSAGE_INVALID_USERNAME).build();
+                return Response.status(Status.FORBIDDEN)
+                        .entity(g.toJson(MESSAGE_INVALID_USERNAME)).build();
             }
 
             String hashedPWD = user.getString(USER_PWD);
             if (!hashedPWD.equals(DigestUtils.sha512Hex(data.password))) {
                 txn.rollback();
                 LOG.warning(LOG_MESSAGE_WRONG_PASSWORD + data.username);
-                return Response.status(Status.FORBIDDEN).entity(MESSAGE_INVALID_PASSWORD).build();
+                return Response.status(Status.FORBIDDEN)
+                        .entity(g.toJson(MESSAGE_INVALID_PASSWORD)).build();
             }
 
             String userRole = user.getString(USER_LOGIN_ROLE);

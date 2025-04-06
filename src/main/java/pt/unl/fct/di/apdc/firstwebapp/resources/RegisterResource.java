@@ -16,6 +16,7 @@ import com.google.gson.Gson;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
@@ -24,6 +25,7 @@ import pt.unl.fct.di.apdc.firstwebapp.types.Role;
 import pt.unl.fct.di.apdc.firstwebapp.util.RegisterData;
 
 @Path("/register")
+@Produces(MediaType.APPLICATION_JSON)
 public class RegisterResource {
 
 	private static final String USER_PWD = "user_pwd";
@@ -47,28 +49,29 @@ public class RegisterResource {
 	@POST
 	@Path("/")
 	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
 	public Response registerUser(RegisterData data){
 		LOG.fine("Attempt to register user: " + data.username);
 
 		// Verificações da entrada de informação
 		if(!data.validRegistration())
 			return Response.status(Status.BAD_REQUEST)
-					.entity("Missing or wrong parameter.")
+					.entity(g.toJson("Missing or wrong parameter."))
 					.build();
 		if(!data.isValidEmailAddress()){
 			return Response.status(Status.BAD_REQUEST)
-					.entity("Invalid email format. Expected: <string>@<string>.<dom>")
+					.entity(g.toJson("Invalid email format. Expected: <string>@<string>.<dom>"))
 					.build();
 		}
 		if (!data.isValidProfileType())
 			return Response.status(Status.BAD_REQUEST)
-					.entity("Profile type invalid ('public' or 'private') !")
+					.entity(g.toJson("Profile type invalid ('public' or 'private') !"))
 					.build();
 		if (!data.isValidPassword())
 			return Response.status(Status.BAD_REQUEST)
-					.entity("Password not strong enough, " +
+					.entity(g.toJson("Password not strong enough, " +
 							"must contain uppercase, lowercase, " +
-							"numbers, and symbols.").build();
+							"numbers, and symbols.")).build();
 
 		Transaction txn = datastore.newTransaction();
 		try{
@@ -78,7 +81,7 @@ public class RegisterResource {
 			if(entity != null){
 				txn.rollback();
 				return Response.status(Status.CONFLICT)
-						.entity("Username already exists !")
+						.entity(g.toJson("Username already exists !"))
 						.build();
 			}
 
@@ -105,7 +108,8 @@ public class RegisterResource {
 			txn.commit();
 
 			LOG.info("User registered successfully: " + data.username);
-			return Response.ok().entity("User registered with success !").build();
+			return Response.ok(g.toJson("User registered with success !"))
+					.build();
 		}catch (Exception e){
 			return Response.status(Status.INTERNAL_SERVER_ERROR).build();
 		}finally {
