@@ -118,7 +118,7 @@ public class LoginResource {
 
         } catch (Exception e) {
             txn.rollback();
-            LOG.severe("Erro durante login: " + e.getMessage());
+            LOG.severe("Error during login: " + e.getMessage());
             return Response.status(Status.INTERNAL_SERVER_ERROR).build();
         }finally {
             if(txn.isActive())

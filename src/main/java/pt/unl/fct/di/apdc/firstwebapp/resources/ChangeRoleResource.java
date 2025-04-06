@@ -19,7 +19,6 @@ import pt.unl.fct.di.apdc.firstwebapp.util.ChangeRoleData;
 public class ChangeRoleResource {
 
     private static final String USER_ROLE = "user_role";
-    private static final String USER_STATE = "user_state";
 
     private static final String TOKEN_ROLE = "token_role";
 
@@ -99,6 +98,5 @@ public class ChangeRoleResource {
             if(txn.isActive())
                 txn.rollback();
         }
-
     }
 }

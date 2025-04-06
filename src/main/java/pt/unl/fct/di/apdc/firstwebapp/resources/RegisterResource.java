@@ -26,6 +26,15 @@ import pt.unl.fct.di.apdc.firstwebapp.util.RegisterData;
 @Path("/register")
 public class RegisterResource {
 
+	private static final String USER_PWD = "user_pwd";
+	private static final String USER_EMAIL = "user_email";
+	private static final String USER_ROLE = "user_role";
+	private static final String USER_NAME = "user_name";
+	private static final String USER_PHONE = "user_phone";
+	private static final String USER_PROFILE = "user_profile";
+	private static final String USER_STATE = "user_state";
+
+
 	private static final Logger LOG = Logger.getLogger(RegisterResource.class.getName());
 	private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
 
@@ -53,7 +62,7 @@ public class RegisterResource {
 		}
 		if (!data.isValidProfileType())
 			return Response.status(Status.BAD_REQUEST)
-					.entity("Profile type invalid ('público' or 'privado') !")
+					.entity("Profile type invalid ('public' or 'private') !")
 					.build();
 		if (!data.isValidPassword())
 			return Response.status(Status.BAD_REQUEST)
@@ -75,13 +84,13 @@ public class RegisterResource {
 
 			// Damos setup ao atributos obrigatórios
 			Entity.Builder userBuilder = Entity.newBuilder(userKey)
-					.set("user_pwd", DigestUtils.sha512Hex(data.password))
-					.set("user_email", data.email)
-					.set("user_name", data.fullName)
-					.set("user_phone", data.phone)
-					.set("user_profile", data.profile)
-					.set("user_role", Role.ENDUSER.getType())
-					.set("user_state", ProfileState.DEACTIVATE.getType())
+					.set(USER_PWD, DigestUtils.sha512Hex(data.password))
+					.set(USER_EMAIL, data.email)
+					.set(USER_NAME, data.fullName)
+					.set(USER_PHONE, data.phone)
+					.set(USER_PROFILE, data.profile)
+					.set(USER_ROLE, Role.ENDUSER.getType())
+					.set(USER_STATE, ProfileState.DEACTIVATE.getType())
 					.set("user_creation_time", Timestamp.now());
 
 			// Caso forneçam os "atributos opcionais"
@@ -97,10 +106,8 @@ public class RegisterResource {
 
 			LOG.info("User registered successfully: " + data.username);
 			return Response.ok().entity("User registered with success !").build();
-		}catch (DatastoreException e){
-			return Response.status(Status.INTERNAL_SERVER_ERROR)
-					.entity(e.toString())
-					.build();
+		}catch (Exception e){
+			return Response.status(Status.INTERNAL_SERVER_ERROR).build();
 		}finally {
 			if(txn.isActive())
 				txn.rollback();
