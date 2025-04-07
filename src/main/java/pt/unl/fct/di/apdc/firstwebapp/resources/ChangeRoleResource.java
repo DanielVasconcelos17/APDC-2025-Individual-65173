@@ -13,6 +13,8 @@ import jakarta.ws.rs.core.Response;
 import pt.unl.fct.di.apdc.firstwebapp.authentication.TokenValidator;
 import pt.unl.fct.di.apdc.firstwebapp.types.Role;
 import pt.unl.fct.di.apdc.firstwebapp.util.ChangeRoleData;
+import com.google.cloud.datastore.StructuredQuery.PropertyFilter;
+
 
 
 @Path("/changeRole")
@@ -22,6 +24,8 @@ public class ChangeRoleResource {
     private static final String USER_ROLE = "user_role";
 
     private static final String TOKEN_ROLE = "token_role";
+    private static final String TOKEN_USERNAME = "token_username";
+
 
     private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
     private final Gson g = new Gson();
@@ -90,6 +94,21 @@ public class ChangeRoleResource {
             Entity updateUser = Entity.newBuilder(targetEntity)
                     .set(USER_ROLE, data.newRole).build();
             txn.put(updateUser);
+
+            // Atualizar todos os tokens associados ao utilizador
+            Query<Entity> query = Query.newEntityQueryBuilder()
+                    .setKind("Token")
+                    .setFilter(PropertyFilter.eq(TOKEN_USERNAME, data.targetUsername))
+                    .build();
+            QueryResults<Entity> tokens = datastore.run(query);
+
+            tokens.forEachRemaining(token -> {
+                Entity updatedToken = Entity.newBuilder(token)
+                        .set(TOKEN_ROLE, data.newRole)
+                        .build();
+                txn.put(updatedToken);
+            });
+
             txn.commit();
             return Response.ok(g.toJson("Role changed successfully to: " + data.newRole))
                     .build();
