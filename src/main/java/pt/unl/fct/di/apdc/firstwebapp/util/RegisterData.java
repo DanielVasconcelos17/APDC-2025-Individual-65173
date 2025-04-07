@@ -22,7 +22,6 @@ public class RegisterData {
     public String job;
     public String address;
     public String employerNif;
-    public String state;
 
     public RegisterData() {}
 

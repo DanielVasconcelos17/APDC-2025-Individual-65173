@@ -1,4 +1,6 @@
-package pt.unl.fct.di.apdc.firstwebapp.util;
+package pt.unl.fct.di.apdc.firstwebapp.response;
+
+import pt.unl.fct.di.apdc.firstwebapp.util.AuthToken;
 
 public class LoginResponse {
     private static final String WELCOME_RESPONSE = "Welcome, %s! Your role is: %s";

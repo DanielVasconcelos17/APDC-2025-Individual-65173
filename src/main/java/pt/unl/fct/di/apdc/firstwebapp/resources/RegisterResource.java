@@ -6,7 +6,6 @@ import org.apache.commons.codec.digest.DigestUtils;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.Datastore;
-import com.google.cloud.datastore.DatastoreException;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.Key;
@@ -22,6 +21,7 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 import pt.unl.fct.di.apdc.firstwebapp.types.ProfileState;
 import pt.unl.fct.di.apdc.firstwebapp.types.Role;
+import pt.unl.fct.di.apdc.firstwebapp.types.UserDSFields;
 import pt.unl.fct.di.apdc.firstwebapp.util.RegisterData;
 
 @Path("/register")
@@ -87,13 +87,20 @@ public class RegisterResource {
 
 			// Damos setup ao atributos obrigatórios
 			Entity.Builder userBuilder = Entity.newBuilder(userKey)
-					.set(USER_PWD, DigestUtils.sha512Hex(data.password))
-					.set(USER_EMAIL, data.email)
-					.set(USER_NAME, data.fullName)
-					.set(USER_PHONE, data.phone)
-					.set(USER_PROFILE, data.profile)
-					.set(USER_ROLE, Role.ENDUSER.getType())
-					.set(USER_STATE, ProfileState.DEACTIVATE.getType())
+					.set(UserDSFields.USER_PWD.toString(),
+							DigestUtils.sha512Hex(data.password))
+					.set(UserDSFields.USER_EMAIL.toString()
+							, data.email)
+					.set(UserDSFields.USER_NAME.toString()
+							, data.fullName)
+					.set(UserDSFields.USER_PHONE.toString()
+							, data.phone)
+					.set(UserDSFields.USER_PROFILE.toString()
+							, data.profile)
+					.set(UserDSFields.USER_ROLE.toString()
+							, Role.ENDUSER.getType())
+					.set(UserDSFields.USER_STATE.toString()
+							, ProfileState.DEACTIVATE.getType())
 					.set("user_creation_time", Timestamp.now());
 
 			// Caso forneçam os "atributos opcionais"
