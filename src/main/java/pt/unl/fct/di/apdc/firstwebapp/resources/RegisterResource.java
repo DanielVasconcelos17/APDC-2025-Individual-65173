@@ -19,6 +19,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
+import pt.unl.fct.di.apdc.firstwebapp.authentication.EmailValidator;
 import pt.unl.fct.di.apdc.firstwebapp.types.ProfileState;
 import pt.unl.fct.di.apdc.firstwebapp.types.Role;
 import pt.unl.fct.di.apdc.firstwebapp.types.UserDSFields;
@@ -27,15 +28,6 @@ import pt.unl.fct.di.apdc.firstwebapp.util.RegisterData;
 @Path("/register")
 @Produces(MediaType.APPLICATION_JSON)
 public class RegisterResource {
-
-	private static final String USER_PWD = "user_pwd";
-	private static final String USER_EMAIL = "user_email";
-	private static final String USER_ROLE = "user_role";
-	private static final String USER_NAME = "user_name";
-	private static final String USER_PHONE = "user_phone";
-	private static final String USER_PROFILE = "user_profile";
-	private static final String USER_STATE = "user_state";
-
 
 	private static final Logger LOG = Logger.getLogger(RegisterResource.class.getName());
 	private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
@@ -58,11 +50,11 @@ public class RegisterResource {
 			return Response.status(Status.BAD_REQUEST)
 					.entity(g.toJson("Missing or wrong parameter."))
 					.build();
-		if(!data.isValidEmailAddress()){
+		if(!EmailValidator.isValidEmailAddress(data.email))
 			return Response.status(Status.BAD_REQUEST)
 					.entity(g.toJson("Invalid email format. Expected: <string>@<string>.<dom>"))
 					.build();
-		}
+
 		if (!data.isValidProfileType())
 			return Response.status(Status.BAD_REQUEST)
 					.entity(g.toJson("Profile type invalid ('public' or 'private') !"))
@@ -104,12 +96,18 @@ public class RegisterResource {
 					.set("user_creation_time", Timestamp.now());
 
 			// Caso forneçam os "atributos opcionais"
-			if (data.citizenCard != null) userBuilder.set("user_citizen_card", data.citizenCard);
-			if (data.userNif != null) userBuilder.set("user_nif", data.userNif);
-			if (data.employer != null) userBuilder.set("user_employer", data.employer);
-			if (data.job != null) userBuilder.set("user_job", data.job);
-			if (data.address != null) userBuilder.set("user_address", data.address);
-			if (data.employerNif != null) userBuilder.set("user_employer_nif", data.employerNif);
+			if (data.citizenCard != null)
+				userBuilder.set(UserDSFields.USER_CC.toString(), data.citizenCard);
+			if (data.userNif != null)
+				userBuilder.set(UserDSFields.USER_NIF.toString(), data.userNif);
+			if (data.employer != null)
+				userBuilder.set(UserDSFields.USER_EMPLOYER.toString(), data.employer);
+			if (data.job != null)
+				userBuilder.set(UserDSFields.USER_JOB.toString(), data.job);
+			if (data.address != null)
+				userBuilder.set(UserDSFields.USER_ADDRESS.toString(), data.address);
+			if (data.employerNif != null)
+				userBuilder.set(UserDSFields.USER_EMP_NIF.toString(), data.employerNif);
 
 			txn.put(userBuilder.build());
 			txn.commit();

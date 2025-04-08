@@ -12,6 +12,7 @@ import jakarta.ws.rs.core.Response.Status;
 import pt.unl.fct.di.apdc.firstwebapp.authentication.TokenValidator;
 import pt.unl.fct.di.apdc.firstwebapp.types.ProfileState;
 import pt.unl.fct.di.apdc.firstwebapp.types.Role;
+import pt.unl.fct.di.apdc.firstwebapp.types.UserDSFields;
 import pt.unl.fct.di.apdc.firstwebapp.util.ChangeAccStateData;
 
 import java.util.logging.Logger;
@@ -20,7 +21,6 @@ import java.util.logging.Logger;
 @Produces(MediaType.APPLICATION_JSON)
 public class ChangeAccountStateResource {
 
-    private static final String USER_STATE = "user_state";
 
     private static final String TOKEN_ROLE = "token_role";
 
@@ -80,7 +80,7 @@ public class ChangeAccountStateResource {
         Transaction txn = datastore.newTransaction();
         try {
             Entity updateUser = Entity.newBuilder(targetEntity)
-                    .set(USER_STATE, data.newState)
+                    .set(UserDSFields.USER_STATE.toString(), data.newState)
                     .build();
             txn.put(updateUser);
             txn.commit();

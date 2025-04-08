@@ -14,4 +14,14 @@ public enum ProfileType {
     public String getType() {
         return type;
     }
+
+    public static ProfileType fromString(String type) {
+        if (type == null) return null;
+        for (ProfileType profile : ProfileType.values()) {
+            if (profile.getType().equalsIgnoreCase(type)) {
+                return profile;
+            }
+        }
+        return null; // Se não encontrar correspondência
+    }
 }

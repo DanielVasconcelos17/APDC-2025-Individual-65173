@@ -34,11 +34,4 @@ public class TokenValidator {
 
         return token.isValid();
     }
-
-    public static boolean hasRole(String tokenId, String requiredRole) {
-        Key tokenKey = datastore.newKeyFactory().setKind("Token").newKey(tokenId);
-        Entity tokenEntity = datastore.get(tokenKey);
-        return tokenEntity != null && tokenEntity.getString(TOKEN_ROLE).equals(requiredRole);
-    }
-
 }

@@ -23,10 +23,8 @@ import com.google.gson.Gson;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.Consumes;
-import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
-import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
@@ -34,6 +32,8 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response.Status;
+import pt.unl.fct.di.apdc.firstwebapp.authentication.EmailValidator;
+import pt.unl.fct.di.apdc.firstwebapp.types.UserDSFields;
 import pt.unl.fct.di.apdc.firstwebapp.util.AuthToken;
 import pt.unl.fct.di.apdc.firstwebapp.util.LoginData;
 import pt.unl.fct.di.apdc.firstwebapp.response.LoginResponse;
@@ -43,7 +43,7 @@ import pt.unl.fct.di.apdc.firstwebapp.response.LoginResponse;
 public class LoginResource {
 
     private static final String MESSAGE_INVALID_PASSWORD = "Incorrect password.";
-    private static final String MESSAGE_INVALID_USERNAME = "Non-existent username.";
+    private static final String MESSAGE_INVALID_IDENTIFIER = "Non-existent identifier.";
 
     private static final String MESSAGE_INVALID_CREDENTIALS = "Incorrect username or password.";
     private static final String MESSAGE_NEXT_PARAMETER_INVALID = "Request parameter 'next' must be greater or equal to 0.";
@@ -70,43 +70,57 @@ public class LoginResource {
 
     private final Gson g = new Gson();
 
-    public LoginResource() {
-    }
+    public LoginResource() {}
 
     @POST
     @Path("/")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response doLogin(LoginData data) {
-        LOG.fine(LOG_MESSAGE_LOGIN_ATTEMP + data.username);
+        LOG.fine(LOG_MESSAGE_LOGIN_ATTEMP + data.identifier);
 
         Transaction txn = datastore.newTransaction();
         try {
-            Key userKey = userKeyFactory.newKey(data.username);
-            Entity user = datastore.get(userKey);
+            Query<Entity> query;
+            if (EmailValidator.isValidEmailAddress(data.identifier))
+                // Busca por email
+                query = Query.newEntityQueryBuilder()
+                        .setKind("User")
+                        .setFilter(PropertyFilter.eq(UserDSFields.USER_EMAIL.toString(), data.identifier))
+                        .build();
+            else
+                // Busca por username
+                query = Query.newEntityQueryBuilder()
+                        .setKind("User")
+                        .setFilter(PropertyFilter.eq("__key__",
+                                userKeyFactory.newKey(data.identifier)))
+                        .build();
 
-            if (user == null) {
+            QueryResults<Entity> results = datastore.run(query);
+
+            if (!results.hasNext()) {
                 txn.rollback();
-                LOG.warning(LOG_MESSAGE_UNKNOW_USER + data.username);
+                LOG.warning(LOG_MESSAGE_UNKNOW_USER + data.identifier);
                 return Response.status(Status.FORBIDDEN)
-                        .entity(g.toJson(MESSAGE_INVALID_USERNAME)).build();
+                        .entity(g.toJson(MESSAGE_INVALID_IDENTIFIER)).build();
             }
 
+            Entity user = results.next();
             String hashedPWD = user.getString(USER_PWD);
             if (!hashedPWD.equals(DigestUtils.sha512Hex(data.password))) {
                 txn.rollback();
-                LOG.warning(LOG_MESSAGE_WRONG_PASSWORD + data.username);
+                LOG.warning(LOG_MESSAGE_WRONG_PASSWORD + data.identifier);
                 return Response.status(Status.FORBIDDEN)
                         .entity(g.toJson(MESSAGE_INVALID_PASSWORD)).build();
             }
 
             String userRole = user.getString(USER_LOGIN_ROLE);
-            AuthToken token = new AuthToken(data.username, userRole);
+            AuthToken token = new AuthToken(data.identifier, userRole);
 
             // Guardar o token
             Key tokenKey = datastore.newKeyFactory().setKind("Token").newKey(token.tokenID);
             Entity tokenEntity = Entity.newBuilder(tokenKey)
-                    .set(TOKEN_USERNAME, data.username)
+                    .set(TOKEN_USERNAME, data.identifier)
                     .set(TOKEN_ROLE, userRole)
                     .set(TOKEN_CREATION_DATA, token.creationData)
                     .set(TOKEN_EXPIRATION_DATA, token.expirationData)
@@ -114,27 +128,17 @@ public class LoginResource {
                     .build();
             txn.put(tokenEntity);
             txn.commit();
-            LoginResponse response = new LoginResponse(token, data.username, userRole);
-            LOG.info(LOG_MESSAGE_LOGIN_SUCCESSFUL + data.username);
+            LoginResponse response = new LoginResponse(token, data.identifier, userRole);
+            LOG.info(LOG_MESSAGE_LOGIN_SUCCESSFUL + data.identifier);
             return Response.ok(g.toJson(response)).build();
 
         } catch (Exception e) {
             txn.rollback();
             LOG.severe("Error during login: " + e.getMessage());
             return Response.status(Status.INTERNAL_SERVER_ERROR).build();
-        }finally {
-            if(txn.isActive())
+        } finally {
+            if (txn.isActive())
                 txn.rollback();
-        }
-    }
-
-    @GET
-    @Path("/{username}")
-    public Response checkUsernameAvailable(@PathParam("username") String username) {
-        if (username.trim().equals("user")) {
-            return Response.ok().entity(g.toJson(true)).build();
-        } else {
-            return Response.ok().entity(g.toJson(false)).build();
         }
     }
 
@@ -144,9 +148,9 @@ public class LoginResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response doLoginV1a(LoginData data) {
-        LOG.fine(LOG_MESSAGE_LOGIN_ATTEMP + data.username);
+        LOG.fine(LOG_MESSAGE_LOGIN_ATTEMP + data.identifier);
 
-        Key userKey = userKeyFactory.newKey(data.username);
+        Key userKey = userKeyFactory.newKey(data.identifier);
 
         Entity user = datastore.get(userKey);
         if (user != null) {
@@ -156,17 +160,17 @@ public class LoginResource {
                         .set("user_login_time", Timestamp.now())
                         .build();
                 datastore.update(user);
-                LOG.info(LOG_MESSAGE_LOGIN_SUCCESSFUL + data.username);
-                AuthToken token = new AuthToken(data.username, "role");
+                LOG.info(LOG_MESSAGE_LOGIN_SUCCESSFUL + data.identifier);
+                AuthToken token = new AuthToken(data.identifier, "role");
                 return Response.ok(g.toJson(token)).build();
             } else {
-                LOG.warning(LOG_MESSAGE_WRONG_PASSWORD + data.username);
+                LOG.warning(LOG_MESSAGE_WRONG_PASSWORD + data.identifier);
                 return Response.status(Status.FORBIDDEN)
                         .entity(MESSAGE_INVALID_CREDENTIALS)
                         .build();
             }
         } else {
-            LOG.warning(LOG_MESSAGE_UNKNOW_USER + data.username);
+            LOG.warning(LOG_MESSAGE_UNKNOW_USER + data.identifier);
             return Response.status(Status.FORBIDDEN)
                     .entity(MESSAGE_INVALID_CREDENTIALS)
                     .build();
@@ -178,33 +182,33 @@ public class LoginResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response doLoginV1b(LoginData data) {
-        LOG.fine(LOG_MESSAGE_LOGIN_ATTEMP + data.username);
+        LOG.fine(LOG_MESSAGE_LOGIN_ATTEMP + data.identifier);
 
-        Key userKey = userKeyFactory.newKey(data.username);
+        Key userKey = userKeyFactory.newKey(data.identifier);
 
         Entity user = datastore.get(userKey);
         if (user != null) {
             String hashedPWD = user.getString(USER_PWD);
             if (hashedPWD.equals(DigestUtils.sha512Hex(data.password))) {
                 KeyFactory logKeyFactory = datastore.newKeyFactory()
-                        .addAncestor(PathElement.of("User", data.username))
+                        .addAncestor(PathElement.of("User", data.identifier))
                         .setKind("UserLog");
                 Key logKey = datastore.allocateId(logKeyFactory.newKey());
                 Entity userLog = Entity.newBuilder(logKey)
                         .set("user_login_time", Timestamp.now())
                         .build();
                 datastore.put(userLog);
-                LOG.info(LOG_MESSAGE_LOGIN_SUCCESSFUL + data.username);
-                AuthToken token = new AuthToken(data.username, "role");
+                LOG.info(LOG_MESSAGE_LOGIN_SUCCESSFUL + data.identifier);
+                AuthToken token = new AuthToken(data.identifier, "role");
                 return Response.ok(g.toJson(token)).build();
             } else {
-                LOG.warning(LOG_MESSAGE_WRONG_PASSWORD + data.username);
+                LOG.warning(LOG_MESSAGE_WRONG_PASSWORD + data.identifier);
                 return Response.status(Status.FORBIDDEN)
                         .entity(MESSAGE_INVALID_CREDENTIALS)
                         .build();
             }
         } else {
-            LOG.warning(LOG_MESSAGE_UNKNOW_USER + data.username);
+            LOG.warning(LOG_MESSAGE_UNKNOW_USER + data.identifier);
             return Response.status(Status.FORBIDDEN)
                     .entity(MESSAGE_INVALID_CREDENTIALS)
                     .build();
@@ -218,17 +222,17 @@ public class LoginResource {
     public Response doLoginV2(LoginData data,
                               @Context HttpServletRequest request,
                               @Context HttpHeaders headers) {
-        LOG.fine(LOG_MESSAGE_LOGIN_ATTEMP + data.username);
+        LOG.fine(LOG_MESSAGE_LOGIN_ATTEMP + data.identifier);
 
-        Key userKey = userKeyFactory.newKey(data.username);
+        Key userKey = userKeyFactory.newKey(data.identifier);
         Key ctrsKey = datastore.newKeyFactory()
-                .addAncestors(PathElement.of("User", data.username))
+                .addAncestors(PathElement.of("User", data.identifier))
                 .setKind("UserStats")
                 .newKey("counters");
         // Generate automatically a key
         Key logKey = datastore.allocateId(
                 datastore.newKeyFactory()
-                        .addAncestors(PathElement.of("User", data.username))
+                        .addAncestors(PathElement.of("User", data.identifier))
                         .setKind("UserLog").newKey());
 
         Transaction txn = datastore.newTransaction();
@@ -236,7 +240,7 @@ public class LoginResource {
             Entity user = txn.get(userKey);
             if (user == null) {
                 // Username does not exist
-                LOG.warning(LOG_MESSAGE_LOGIN_ATTEMP + data.username);
+                LOG.warning(LOG_MESSAGE_LOGIN_ATTEMP + data.identifier);
                 return Response.status(Status.FORBIDDEN)
                         .entity(MESSAGE_INVALID_CREDENTIALS)
                         .build();
@@ -283,8 +287,8 @@ public class LoginResource {
                 txn.put(log, ustats);
                 txn.commit();
                 // Return token
-                AuthToken token = new AuthToken(data.username, "role");
-                LOG.info(LOG_MESSAGE_LOGIN_SUCCESSFUL + data.username);
+                AuthToken token = new AuthToken(data.identifier, "role");
+                LOG.info(LOG_MESSAGE_LOGIN_SUCCESSFUL + data.identifier);
                 return Response.ok(g.toJson(token)).build();
             } else {
                 // Incorrect password
@@ -299,7 +303,7 @@ public class LoginResource {
 
                 txn.put(ustats);
                 txn.commit();
-                LOG.warning(LOG_MESSAGE_WRONG_PASSWORD + data.username);
+                LOG.warning(LOG_MESSAGE_WRONG_PASSWORD + data.identifier);
                 return Response.status(Status.FORBIDDEN).entity(MESSAGE_INVALID_CREDENTIALS).build();
             }
         } catch (Exception e) {
@@ -319,7 +323,7 @@ public class LoginResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response getLatestLogins(LoginData data) {
 
-        Key userKey = userKeyFactory.newKey(data.username);
+        Key userKey = userKeyFactory.newKey(data.identifier);
 
         Entity user = datastore.get(userKey);
         if (user != null && user.getString(USER_PWD).equals(DigestUtils.sha512Hex(data.password))) {
@@ -334,7 +338,7 @@ public class LoginResource {
                     .setFilter(
                             CompositeFilter.and(
                                     PropertyFilter.hasAncestor(
-                                            datastore.newKeyFactory().setKind("User").newKey(data.username)),
+                                            datastore.newKeyFactory().setKind("User").newKey(data.identifier)),
                                     PropertyFilter.ge(USER_LOGIN_TIME, yesterday)))
                     .setOrderBy(OrderBy.desc(USER_LOGIN_TIME))
                     .setLimit(3)
@@ -369,7 +373,7 @@ public class LoginResource {
             return Response.status(Status.BAD_REQUEST).entity(MESSAGE_NEXT_PARAMETER_INVALID).build();
         }
 
-        Key userKey = userKeyFactory.newKey(data.username);
+        Key userKey = userKeyFactory.newKey(data.identifier);
 
         Entity user = datastore.get(userKey);
         if (user != null && user.getString(USER_PWD).equals(DigestUtils.sha512Hex(data.password))) {
@@ -384,7 +388,7 @@ public class LoginResource {
                     .setFilter(
                             CompositeFilter.and(
                                     PropertyFilter.hasAncestor(
-                                            datastore.newKeyFactory().setKind("User").newKey(data.username)),
+                                            datastore.newKeyFactory().setKind("User").newKey(data.identifier)),
                                     PropertyFilter.ge(USER_LOGIN_TIME, yesterday)))
                     .setOrderBy(OrderBy.desc(USER_LOGIN_TIME))
                     .setLimit(3)

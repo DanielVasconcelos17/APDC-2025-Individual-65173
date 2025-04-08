@@ -52,19 +52,6 @@ public class RegisterData {
                 && password.equals(pwdConfirmation);
     }
 
-
-
-    public boolean isValidEmailAddress() {
-        // Verfica se o formato do email está correto
-        // com o que foi pedido no enunciado "<string>@<string>.<dom>"
-        if (email == null || email.trim().isEmpty()) {
-            return false;
-        }
-        String emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$";
-        Pattern pattern = Pattern.compile(emailRegex);
-        return pattern.matcher(email).matches();
-    }
-
     public boolean isValidProfileType(){
         return profile.equals(ProfileType.PUBLIC.getType())
                 || profile.equals(ProfileType.PRIVATE.getType());
