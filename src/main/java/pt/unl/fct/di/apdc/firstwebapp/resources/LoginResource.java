@@ -96,7 +96,7 @@ public class LoginResource {
                                 userKeyFactory.newKey(data.identifier)))
                         .build();
 
-            QueryResults<Entity> results = datastore.run(query);
+            QueryResults<Entity> results = txn.run(query);
 
             if (!results.hasNext()) {
                 txn.rollback();

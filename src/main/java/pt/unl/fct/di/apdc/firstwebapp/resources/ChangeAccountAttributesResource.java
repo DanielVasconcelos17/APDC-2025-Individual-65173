@@ -16,6 +16,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 import pt.unl.fct.di.apdc.firstwebapp.authentication.TokenValidator;
+import pt.unl.fct.di.apdc.firstwebapp.response.UserFullListing;
 import pt.unl.fct.di.apdc.firstwebapp.types.ProfileState;
 import pt.unl.fct.di.apdc.firstwebapp.types.ProfileType;
 import pt.unl.fct.di.apdc.firstwebapp.types.Role;
@@ -56,19 +57,19 @@ public class ChangeAccountAttributesResource {
         try {
             // Obter o token e o role do user que está a fazer a alteraçao
             Key tokenKey = tokenKeyFactory.newKey(data.tokenId);
-            Entity tokenEntity = datastore.get(tokenKey);
+            Entity tokenEntity = txn.get(tokenKey);
 
             String requesterRole = tokenEntity.getString(TOKEN_ROLE);
             String requesterUsername = tokenEntity.getString(TOKEN_USERNAME);
 
             //Para verificar o state do user que está a fazer o pedido
             Key requesterKey = userKeyFactory.newKey(requesterUsername);
-            Entity requesterEntity = datastore.get(requesterKey);
+            Entity requesterEntity = txn.get(requesterKey);
             String requesterState = requesterEntity.getString(UserDSFields.USER_STATE.toString());
             // --------------
 
             Key targetKey = userKeyFactory.newKey(data.targetUsername);
-            Entity targetEntity = datastore.get(targetKey);
+            Entity targetEntity = txn.get(targetKey);
 
             if (targetEntity == null)
                 return Response.status(Response.Status.NOT_FOUND)
@@ -93,8 +94,9 @@ public class ChangeAccountAttributesResource {
 
             txn.put(updatedUser.build());
             txn.commit();
-            return Response.ok(g.toJson("Account attributes " +
-                    "updated successfully.")).build();
+            //Para visualização dos atributos
+            UserFullListing view = new UserFullListing(updatedUser.build());
+            return Response.ok(g.toJson(view)).build();
         } catch (Exception e) {
             txn.rollback();
             return Response.status(Status.INTERNAL_SERVER_ERROR).build();
@@ -181,7 +183,7 @@ public class ChangeAccountAttributesResource {
                 .setFilter(PropertyFilter.eq(TOKEN_USERNAME, oldUsername))
                 .build();
 
-        QueryResults<Entity> tokens = datastore.run(query);
+        QueryResults<Entity> tokens = txn.run(query);
 
         tokens.forEachRemaining(token -> {
             Entity updatedToken = Entity.newBuilder(token)

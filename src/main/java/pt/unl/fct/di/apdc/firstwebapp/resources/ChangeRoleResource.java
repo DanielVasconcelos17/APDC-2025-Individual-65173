@@ -100,7 +100,7 @@ public class ChangeRoleResource {
                     .setKind("Token")
                     .setFilter(PropertyFilter.eq(TOKEN_USERNAME, data.targetUsername))
                     .build();
-            QueryResults<Entity> tokens = datastore.run(query);
+            QueryResults<Entity> tokens = txn.run(query);
 
             tokens.forEachRemaining(token -> {
                 Entity updatedToken = Entity.newBuilder(token)
