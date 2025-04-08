@@ -71,9 +71,6 @@ public class ChangeAccountAttributesResource {
         }
         Transaction txn = datastore.newTransaction();
         try {
-            //Key tokenKey = tokenKeyFactory.newKey(tokenID);
-            //tokenEntity = txn.get(tokenKey);  CUIDADO TODO
-
             // Obter o token e o role do user que está a fazer a alteraçao
             String requesterRole = tokenEntity.getString(TOKEN_ROLE);
             String requesterUsername = tokenEntity.getString(TOKEN_USERNAME);
