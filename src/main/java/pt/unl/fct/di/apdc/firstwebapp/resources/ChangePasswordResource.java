@@ -20,7 +20,6 @@ import pt.unl.fct.di.apdc.firstwebapp.util.ChangePasswordData;
 public class ChangePasswordResource {
 
     private static final String MESSAGE_PASSWORD_MISMATCH = "New passwords do not match.";
-    private static final String MESSAGE_USER_NOT_FOUND = "User not found.";
     private static final String MESSAGE_INVALID_CURRENT_PASSWORD = "Current password is incorrect.";
 
 
