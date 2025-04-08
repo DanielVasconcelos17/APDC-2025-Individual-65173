@@ -11,7 +11,9 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import pt.unl.fct.di.apdc.firstwebapp.authentication.TokenValidator;
+import pt.unl.fct.di.apdc.firstwebapp.response.UserFullListing;
 import pt.unl.fct.di.apdc.firstwebapp.types.Role;
+import pt.unl.fct.di.apdc.firstwebapp.types.UserDSFields;
 import pt.unl.fct.di.apdc.firstwebapp.util.ChangeRoleData;
 import com.google.cloud.datastore.StructuredQuery.PropertyFilter;
 
@@ -21,7 +23,6 @@ import com.google.cloud.datastore.StructuredQuery.PropertyFilter;
 @Produces(MediaType.APPLICATION_JSON)
 public class ChangeRoleResource {
 
-    private static final String USER_ROLE = "user_role";
 
     private static final String TOKEN_ROLE = "token_role";
     private static final String TOKEN_USERNAME = "token_username";
@@ -35,15 +36,30 @@ public class ChangeRoleResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response changeRole(ChangeRoleData data){
+
+        // Buscar o tokenID associado ao requesterUsername
+        Query<Entity> tokenQuery = Query.newEntityQueryBuilder()
+                .setKind("Token")
+                .setFilter(PropertyFilter.eq(TOKEN_USERNAME, data.requesterUsername))
+                .build();
+        QueryResults<Entity> allTokens = datastore.run(tokenQuery);
+
+        if (!allTokens.hasNext()) {
+            return Response.status(Status.FORBIDDEN)
+                    .entity(g.toJson("No active token found for requester."))
+                    .build();
+        }
+
+        Entity tokenEntity = allTokens.next();
+        String tokenID = tokenEntity.getKey().getName(); // Obtém o ID do token
+
         // Validação do token
-        if (!TokenValidator.isValidToken(data.tokenID)) {
+        if (!TokenValidator.isValidToken(tokenID)) {
             return Response.status(Response.Status.FORBIDDEN)
                     .entity(g.toJson("Invalid or expired token.")).build();
         }
 
         // Obter o role do user que está a fazer o pedido
-        Key tokenKey = datastore.newKeyFactory().setKind("Token").newKey(data.tokenID);
-        Entity tokenEntity = datastore.get(tokenKey);
         String requesterRole = tokenEntity.getString(TOKEN_ROLE);
 
         if(!ChangeRoleData.isValidRole(requesterRole)
@@ -54,8 +70,8 @@ public class ChangeRoleResource {
                     .build();
 
         // Verificar se o o user target existe
-        Key userKey = datastore.newKeyFactory().setKind("User").newKey(data.targetUsername);
-        Entity targetEntity = datastore.get(userKey);
+        Key targetKey = datastore.newKeyFactory().setKind("User").newKey(data.targetUsername);
+        Entity targetEntity = datastore.get(targetKey);
 
         if(targetEntity == null)
             return Response.status(Status.NOT_FOUND)
@@ -63,7 +79,7 @@ public class ChangeRoleResource {
                     .build();
 
         // Obter a role do user target
-        String targetUserRole = targetEntity.getString(USER_ROLE);
+        String targetUserRole = targetEntity.getString(UserDSFields.USER_ROLE.toString());
 
         // Verificar permissoes
         if(requesterRole.equals(Role.ENDUSER.getType()))
@@ -92,7 +108,8 @@ public class ChangeRoleResource {
         Transaction txn = datastore.newTransaction();
         try{
             Entity updateUser = Entity.newBuilder(targetEntity)
-                    .set(USER_ROLE, data.newRole).build();
+                    .set(UserDSFields.USER_ROLE.toString()
+                            , data.newRole).build();
             txn.put(updateUser);
 
             // Atualizar todos os tokens associados ao utilizador
@@ -110,7 +127,8 @@ public class ChangeRoleResource {
             });
 
             txn.commit();
-            return Response.ok(g.toJson("Role changed successfully to: " + data.newRole))
+            UserFullListing view = new UserFullListing(updateUser);
+            return Response.ok(g.toJson(view))
                     .build();
         }catch (Exception e){
             txn.rollback();

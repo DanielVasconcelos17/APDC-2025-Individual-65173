@@ -49,16 +49,32 @@ public class ChangeAccountAttributesResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response changeAttributes(ChangeAttributesData data) {
 
+        // Buscar o tokenID associado ao requesterUsername
+        Query<Entity> tokenQuery = Query.newEntityQueryBuilder()
+                .setKind("Token")
+                .setFilter(PropertyFilter.eq(TOKEN_USERNAME, data.requesterUsername))
+                .build();
+        QueryResults<Entity> allTokens = datastore.run(tokenQuery);
+
+        if (!allTokens.hasNext()) {
+            return Response.status(Status.FORBIDDEN)
+                    .entity(g.toJson("No active token found for requester."))
+                    .build();
+        }
+
+        Entity tokenEntity = allTokens.next();
+        String tokenID = tokenEntity.getKey().getName(); // Obtém o ID do token
+
         // Verificar se o token é válido
-        if (!TokenValidator.isValidToken(data.tokenId)) {
+        if (!TokenValidator.isValidToken(tokenID)) {
             return Response.status(Status.FORBIDDEN).entity("Invalid or expired token.").build();
         }
         Transaction txn = datastore.newTransaction();
         try {
-            // Obter o token e o role do user que está a fazer a alteraçao
-            Key tokenKey = tokenKeyFactory.newKey(data.tokenId);
-            Entity tokenEntity = txn.get(tokenKey);
+            //Key tokenKey = tokenKeyFactory.newKey(tokenID);
+            //tokenEntity = txn.get(tokenKey);  CUIDADO TODO
 
+            // Obter o token e o role do user que está a fazer a alteraçao
             String requesterRole = tokenEntity.getString(TOKEN_ROLE);
             String requesterUsername = tokenEntity.getString(TOKEN_USERNAME);
 
@@ -66,7 +82,6 @@ public class ChangeAccountAttributesResource {
             Key requesterKey = userKeyFactory.newKey(requesterUsername);
             Entity requesterEntity = txn.get(requesterKey);
             String requesterState = requesterEntity.getString(UserDSFields.USER_STATE.toString());
-            // --------------
 
             Key targetKey = userKeyFactory.newKey(data.targetUsername);
             Entity targetEntity = txn.get(targetKey);

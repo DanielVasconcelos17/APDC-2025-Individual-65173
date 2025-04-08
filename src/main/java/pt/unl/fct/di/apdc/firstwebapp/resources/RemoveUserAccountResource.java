@@ -41,15 +41,29 @@ public class RemoveUserAccountResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response removeUserAcc(RemoveUserData data) {
 
+        // Buscar o tokenID associado ao requesterUsername
+        Query<Entity> tokenQuery = Query.newEntityQueryBuilder()
+                .setKind("Token")
+                .setFilter(PropertyFilter.eq(TOKEN_USERNAME, data.requesterUsername))
+                .build();
+        QueryResults<Entity> allTokens = datastore.run(tokenQuery);
+
+        if (!allTokens.hasNext()) {
+            return Response.status(Response.Status.FORBIDDEN)
+                    .entity(g.toJson("No active token found for requester."))
+                    .build();
+        }
+
+        Entity tokenEntity = allTokens.next();
+        String tokenID = tokenEntity.getKey().getName(); // Obtém o ID do token
+
         // Validação do token
-        if (!TokenValidator.isValidToken(data.tokenID)) {
+        if (!TokenValidator.isValidToken(tokenID)) {
             return Response.status(Response.Status.FORBIDDEN)
                     .entity(g.toJson("Invalid or expired token.")).build();
         }
 
         // Obter role do user que faz o pedido
-        Key tokenKey = tokenKeyFactory.newKey(data.tokenID);
-        Entity tokenEntity = datastore.get(tokenKey);
         String requesterRole = tokenEntity.getString(TOKEN_ROLE);
 
         // Verificar se o target é o próprio root

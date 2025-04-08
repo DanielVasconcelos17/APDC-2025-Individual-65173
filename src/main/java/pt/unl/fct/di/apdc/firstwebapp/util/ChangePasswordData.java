@@ -2,7 +2,7 @@ package pt.unl.fct.di.apdc.firstwebapp.util;
 
 public class ChangePasswordData {
 
-    public String tokenID;
+    public String requesterUsername;
     public String currentPassword;
     public String newPassword;
     public String confirmNewPassword;

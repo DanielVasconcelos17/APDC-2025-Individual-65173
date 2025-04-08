@@ -37,15 +37,32 @@ public class ChangePasswordResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response changePassword(ChangePasswordData data){
+
+        // Buscar o tokenID associado ao requesterUsername
+        Query<Entity> tokenQuery = Query.newEntityQueryBuilder()
+                .setKind("Token")
+                .setFilter(StructuredQuery.PropertyFilter.eq(TOKEN_USERNAME, data.requesterUsername))
+                .build();
+        QueryResults<Entity> allTokens = datastore.run(tokenQuery);
+
+        if (!allTokens.hasNext()) {
+            return Response.status(Status.FORBIDDEN)
+                    .entity(g.toJson("No active token found for requester."))
+                    .build();
+        }
+
+        Entity tokenEntity = allTokens.next();
+        String tokenID = tokenEntity.getKey().getName(); // Obtém o ID do token
+
+
         // Validação do token
-        if (!TokenValidator.isValidToken(data.tokenID)) {
+        if (!TokenValidator.isValidToken(tokenID)) {
             return Response.status(Response.Status.FORBIDDEN)
                     .entity(g.toJson("Invalid or expired token.")).build();
         }
         Transaction txn = datastore.newTransaction();
         try{
-            Key tokenKey = tokenKeyFactory.newKey(data.tokenID);
-            Entity tokenEntity = txn.get(tokenKey);
+
             String username = tokenEntity.getString(TOKEN_USERNAME);
 
             Key userKey = userKeyFactory.newKey(username);

@@ -10,6 +10,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 import pt.unl.fct.di.apdc.firstwebapp.authentication.TokenValidator;
+import pt.unl.fct.di.apdc.firstwebapp.response.UserFullListing;
 import pt.unl.fct.di.apdc.firstwebapp.types.ProfileState;
 import pt.unl.fct.di.apdc.firstwebapp.types.Role;
 import pt.unl.fct.di.apdc.firstwebapp.types.UserDSFields;
@@ -23,6 +24,8 @@ public class ChangeAccountStateResource {
 
 
     private static final String TOKEN_ROLE = "token_role";
+    private static final String TOKEN_USERNAME = "token_username";
+
 
     private static final Logger LOG = Logger.getLogger(ChangeAccountStateResource.class.getName());
     private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
@@ -36,8 +39,24 @@ public class ChangeAccountStateResource {
     public Response changeAccState(ChangeAccStateData data){
         LOG.fine("Attempt to change user state: " + data.targetUsername);
 
+        // Buscar o tokenID associado ao requesterUsername
+        Query<Entity> tokenQuery = Query.newEntityQueryBuilder()
+                .setKind("Token")
+                .setFilter(StructuredQuery.PropertyFilter.eq(TOKEN_USERNAME, data.requesterUsername))
+                .build();
+        QueryResults<Entity> allTokens = datastore.run(tokenQuery);
+
+        if (!allTokens.hasNext()) {
+            return Response.status(Status.FORBIDDEN)
+                    .entity(g.toJson("No active token found for requester."))
+                    .build();
+        }
+
+        Entity tokenEntity = allTokens.next();
+        String tokenID = tokenEntity.getKey().getName(); // Obtém o ID do token
+
         // Validação do token
-        if (!TokenValidator.isValidToken(data.tokenID))
+        if (!TokenValidator.isValidToken(tokenID))
             return Response.status(Status.FORBIDDEN)
                     .entity(g.toJson("Invalid or expired token.")).build();
 
@@ -49,8 +68,6 @@ public class ChangeAccountStateResource {
                             "ACTIVATE, SUSPENDED or DEACTIVATE."))
                     .build();
 
-        Key tokenKey = datastore.newKeyFactory().setKind("Token").newKey(data.tokenID);
-        Entity tokenEntity = datastore.get(tokenKey);
         String requesterRole = tokenEntity.getString(TOKEN_ROLE);
 
         // Verificação de permissão da role para alterar state
@@ -84,8 +101,9 @@ public class ChangeAccountStateResource {
                     .build();
             txn.put(updateUser);
             txn.commit();
-            return Response.ok(g.toJson(data.targetUsername +
-                    " account status changed to: " + data.newState)).build();
+
+            UserFullListing view = new UserFullListing(updateUser);
+            return Response.ok(g.toJson(view)).build();
         }catch (Exception e){
             txn.rollback();
             return Response.status(Status.INTERNAL_SERVER_ERROR).build();

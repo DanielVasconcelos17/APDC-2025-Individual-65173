@@ -27,6 +27,10 @@ import java.util.List;
 @Produces(MediaType.APPLICATION_JSON)
 public class ListUsersResource {
 
+    private static final String TOKEN_ROLE = "token_role";
+    private static final String TOKEN_USERNAME = "token_username";
+
+
     private static final Logger LOG = Logger.getLogger(ListUsersResource.class.getName());
 
     private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
@@ -38,7 +42,25 @@ public class ListUsersResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response listUsers(AuthToken token) {
 
-        if (!TokenValidator.isValidToken(token.tokenID)) {
+        // Buscar o tokenID associado ao requesterUsername
+        Query<Entity> tokenQuery = Query.newEntityQueryBuilder()
+                .setKind("Token")
+                .setFilter(StructuredQuery.PropertyFilter.eq(TOKEN_USERNAME, token.username))
+                .build();
+        QueryResults<Entity> allTokens = datastore.run(tokenQuery);
+
+        if (!allTokens.hasNext()) {
+            return Response.status(Status.FORBIDDEN)
+                    .entity(g.toJson("No active token found for requester."))
+                    .build();
+        }
+
+        Entity tokenEntity = allTokens.next();
+        String tokenID = tokenEntity.getKey().getName(); // Obtém o ID do token
+        String tokenRole = tokenEntity.getString(TOKEN_ROLE); // Obtém o ID do token
+
+
+        if (!TokenValidator.isValidToken(tokenID)) {
             return Response.status(Response.Status.FORBIDDEN)
                     .entity(g.toJson("Invalid or expired token."))
                     .build();
@@ -56,8 +78,8 @@ public class ListUsersResource {
                 String userProfile = user.getString(UserDSFields.USER_PROFILE.toString());
                 String userState = user.getString(UserDSFields.USER_STATE.toString());
 
-                if (shouldIncludeUser(token.role, userRole, userProfile, userState)) {
-                    result.add(createUserDS(token.role, user));
+                if (shouldIncludeUser(tokenRole, userRole, userProfile, userState)) {
+                    result.add(createUserDS(tokenRole, user));
                 }
             }
             return Response.ok(g.toJson(result)).build();

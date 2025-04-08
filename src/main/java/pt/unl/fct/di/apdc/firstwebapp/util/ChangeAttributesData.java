@@ -2,7 +2,7 @@ package pt.unl.fct.di.apdc.firstwebapp.util;
 
 public class ChangeAttributesData {
 
-    public String tokenId;
+    public String requesterUsername;
     public String targetUsername;
     public String targetUpdtUsername;
     public String email;
