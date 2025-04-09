@@ -11,6 +11,7 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 import org.apache.commons.codec.digest.DigestUtils;
 import pt.unl.fct.di.apdc.firstwebapp.authentication.TokenValidator;
+import pt.unl.fct.di.apdc.firstwebapp.response.TokenValidationResult;
 import pt.unl.fct.di.apdc.firstwebapp.response.UserFullListing;
 import pt.unl.fct.di.apdc.firstwebapp.types.UserDSFields;
 import pt.unl.fct.di.apdc.firstwebapp.util.ChangePasswordData;
@@ -36,47 +37,32 @@ public class ChangePasswordResource {
     @Path("/")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response changePassword(ChangePasswordData data){
+    public Response changePassword(ChangePasswordData data) {
 
-        // Buscar o tokenID associado ao requesterUsername
-        Query<Entity> tokenQuery = Query.newEntityQueryBuilder()
-                .setKind("Token")
-                .setFilter(StructuredQuery.PropertyFilter.eq(TOKEN_USERNAME, data.requesterUsername))
-                .build();
-        QueryResults<Entity> allTokens = datastore.run(tokenQuery);
-
-        if (!allTokens.hasNext()) {
-            return Response.status(Status.FORBIDDEN)
-                    .entity(g.toJson("No active token found for requester."))
-                    .build();
-        }
-
-        Entity tokenEntity = allTokens.next();
-        String tokenID = tokenEntity.getKey().getName(); // Obtém o ID do token
-
-
-        // Validação do token
-        if (!TokenValidator.isValidToken(tokenID)) {
-            return Response.status(Response.Status.FORBIDDEN)
-                    .entity(g.toJson("Invalid or expired token.")).build();
-        }
         Transaction txn = datastore.newTransaction();
-        try{
+        try {
+            // Buscar o tokenID associado ao requesterUsername
+            TokenValidationResult validation =
+                    TokenValidator.validateToken(txn, datastore, data.requesterUsername);
+            if (validation.errorResponse != null) {
+                txn.rollback();
+                return validation.errorResponse;
+            }
 
-            String username = tokenEntity.getString(TOKEN_USERNAME);
+            String username = validation.tokenEntity.getString(TOKEN_USERNAME);
 
             Key userKey = userKeyFactory.newKey(username);
             Entity userEntity = txn.get(userKey);
 
             String currPasswordHashed = userEntity.getString(UserDSFields.USER_PWD.toString());
-            if(!currPasswordHashed.equals(DigestUtils.sha512Hex(data.currentPassword))){
+            if (!currPasswordHashed.equals(DigestUtils.sha512Hex(data.currentPassword))) {
                 txn.rollback();
                 return Response.status(Status.FORBIDDEN)
                         .entity(g.toJson(MESSAGE_INVALID_CURRENT_PASSWORD))
                         .build();
             }
 
-            if(!data.newPassword.equals(data.confirmNewPassword)){
+            if (!data.newPassword.equals(data.confirmNewPassword)) {
                 txn.rollback();
                 return Response.status(Status.BAD_REQUEST)
                         .entity(g.toJson(MESSAGE_PASSWORD_MISMATCH))
@@ -91,11 +77,11 @@ public class ChangePasswordResource {
             //Para visualização dos atributos
             UserFullListing view = new UserFullListing(updatedUser);
             return Response.ok(g.toJson(view)).build();
-        }catch (Exception e){
+        } catch (Exception e) {
             txn.rollback();
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
-        }finally {
-            if(txn.isActive())
+        } finally {
+            if (txn.isActive())
                 txn.rollback();
         }
     }

@@ -29,97 +29,99 @@ import pt.unl.fct.di.apdc.firstwebapp.util.RegisterData;
 @Produces(MediaType.APPLICATION_JSON)
 public class RegisterResource {
 
-	private static final Logger LOG = Logger.getLogger(RegisterResource.class.getName());
-	private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
+    private static final Logger LOG = Logger.getLogger(RegisterResource.class.getName());
+    private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
 
-	private final Gson g = new Gson();
-
-
-	public RegisterResource() {}
+    private final Gson g = new Gson();
 
 
-	@POST
-	@Path("/")
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces(MediaType.APPLICATION_JSON)
-	public Response registerUser(RegisterData data){
-		LOG.fine("Attempt to register user: " + data.username);
+    public RegisterResource() {
+    }
 
-		// Verificações da entrada de informação
-		if(!data.validRegistration())
-			return Response.status(Status.BAD_REQUEST)
-					.entity(g.toJson("Missing or wrong parameter."))
-					.build();
-		if(!EmailValidator.isValidEmailAddress(data.email))
-			return Response.status(Status.BAD_REQUEST)
-					.entity(g.toJson("Invalid email format. Expected: <string>@<string>.<dom>"))
-					.build();
 
-		if (!data.isValidProfileType())
-			return Response.status(Status.BAD_REQUEST)
-					.entity(g.toJson("Profile type invalid ('public' or 'private') !"))
-					.build();
-		if (!data.isValidPassword())
-			return Response.status(Status.BAD_REQUEST)
-					.entity(g.toJson("Password not strong enough, " +
-							"must contain uppercase, lowercase, " +
-							"numbers, and symbols.")).build();
+    @POST
+    @Path("/")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response registerUser(RegisterData data) {
+        LOG.fine("Attempt to register user: " + data.username);
 
-		Transaction txn = datastore.newTransaction();
-		try{
-			Key userKey = datastore.newKeyFactory().setKind("User").newKey(data.username);
-			Entity entity = txn.get(userKey);
+        Transaction txn = datastore.newTransaction();
+        try {
+            // Verificações da entrada de informação
+            if (!data.validRegistration())
+                return Response.status(Status.BAD_REQUEST)
+                        .entity(g.toJson("Missing or wrong parameter."))
+                        .build();
+            if (!EmailValidator.isValidEmailAddress(data.email))
+                return Response.status(Status.BAD_REQUEST)
+                        .entity(g.toJson("Invalid email format. Expected: <string>@<string>.<dom>"))
+                        .build();
 
-			if(entity != null){
-				txn.rollback();
-				return Response.status(Status.CONFLICT)
-						.entity(g.toJson("Username already exists !"))
-						.build();
-			}
+            if (!data.isValidProfileType())
+                return Response.status(Status.BAD_REQUEST)
+                        .entity(g.toJson("Profile type invalid ('public' or 'private') !"))
+                        .build();
+            if (!data.isValidPassword())
+                return Response.status(Status.BAD_REQUEST)
+                        .entity(g.toJson("Password not strong enough, " +
+                                "must contain uppercase, lowercase, " +
+                                "numbers, and symbols.")).build();
 
-			// Damos setup ao atributos obrigatórios
-			Entity.Builder userBuilder = Entity.newBuilder(userKey)
-					.set(UserDSFields.USER_PWD.toString(),
-							DigestUtils.sha512Hex(data.password))
-					.set(UserDSFields.USER_EMAIL.toString()
-							, data.email)
-					.set(UserDSFields.USER_NAME.toString()
-							, data.fullName)
-					.set(UserDSFields.USER_PHONE.toString()
-							, data.phone)
-					.set(UserDSFields.USER_PROFILE.toString()
-							, data.profile)
-					.set(UserDSFields.USER_ROLE.toString()
-							, Role.ENDUSER.getType())
-					.set(UserDSFields.USER_STATE.toString()
-							, ProfileState.DEACTIVATE.getType())
-					.set("user_creation_time", Timestamp.now());
 
-			// Caso forneçam os "atributos opcionais"
-			if (data.citizenCard != null)
-				userBuilder.set(UserDSFields.USER_CC.toString(), data.citizenCard);
-			if (data.userNif != null)
-				userBuilder.set(UserDSFields.USER_NIF.toString(), data.userNif);
-			if (data.employer != null)
-				userBuilder.set(UserDSFields.USER_EMPLOYER.toString(), data.employer);
-			if (data.job != null)
-				userBuilder.set(UserDSFields.USER_JOB.toString(), data.job);
-			if (data.address != null)
-				userBuilder.set(UserDSFields.USER_ADDRESS.toString(), data.address);
-			if (data.employerNif != null)
-				userBuilder.set(UserDSFields.USER_EMP_NIF.toString(), data.employerNif);
+            Key userKey = datastore.newKeyFactory().setKind("User").newKey(data.username);
+            Entity entity = txn.get(userKey);
 
-			txn.put(userBuilder.build());
-			txn.commit();
+            if (entity != null) {
+                txn.rollback();
+                return Response.status(Status.CONFLICT)
+                        .entity(g.toJson("Username already exists !"))
+                        .build();
+            }
 
-			LOG.info("User registered successfully: " + data.username);
-			return Response.ok(g.toJson("User registered with success !"))
-					.build();
-		}catch (Exception e){
-			return Response.status(Status.INTERNAL_SERVER_ERROR).build();
-		}finally {
-			if(txn.isActive())
-				txn.rollback();
-		}
-	}
+            // Damos setup ao atributos obrigatórios
+            Entity.Builder userBuilder = Entity.newBuilder(userKey)
+                    .set(UserDSFields.USER_PWD.toString(),
+                            DigestUtils.sha512Hex(data.password))
+                    .set(UserDSFields.USER_EMAIL.toString()
+                            , data.email)
+                    .set(UserDSFields.USER_NAME.toString()
+                            , data.fullName)
+                    .set(UserDSFields.USER_PHONE.toString()
+                            , data.phone)
+                    .set(UserDSFields.USER_PROFILE.toString()
+                            , data.profile)
+                    .set(UserDSFields.USER_ROLE.toString()
+                            , Role.ENDUSER.getType())
+                    .set(UserDSFields.USER_STATE.toString()
+                            , ProfileState.DEACTIVATE.getType())
+                    .set("user_creation_time", Timestamp.now());
+
+            // Caso forneçam os "atributos opcionais"
+            if (data.citizenCard != null)
+                userBuilder.set(UserDSFields.USER_CC.toString(), data.citizenCard);
+            if (data.userNif != null)
+                userBuilder.set(UserDSFields.USER_NIF.toString(), data.userNif);
+            if (data.employer != null)
+                userBuilder.set(UserDSFields.USER_EMPLOYER.toString(), data.employer);
+            if (data.job != null)
+                userBuilder.set(UserDSFields.USER_JOB.toString(), data.job);
+            if (data.address != null)
+                userBuilder.set(UserDSFields.USER_ADDRESS.toString(), data.address);
+            if (data.employerNif != null)
+                userBuilder.set(UserDSFields.USER_EMP_NIF.toString(), data.employerNif);
+
+            txn.put(userBuilder.build());
+            txn.commit();
+
+            LOG.info("User registered successfully: " + data.username);
+            return Response.ok(g.toJson("User registered with success !"))
+                    .build();
+        } catch (Exception e) {
+            return Response.status(Status.INTERNAL_SERVER_ERROR).build();
+        } finally {
+            if (txn.isActive())
+                txn.rollback();
+        }
+    }
 }

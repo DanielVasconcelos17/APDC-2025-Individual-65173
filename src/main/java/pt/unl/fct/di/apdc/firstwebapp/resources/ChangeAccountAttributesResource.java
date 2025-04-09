@@ -16,6 +16,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 import pt.unl.fct.di.apdc.firstwebapp.authentication.TokenValidator;
+import pt.unl.fct.di.apdc.firstwebapp.response.TokenValidationResult;
 import pt.unl.fct.di.apdc.firstwebapp.response.UserFullListing;
 import pt.unl.fct.di.apdc.firstwebapp.types.ProfileState;
 import pt.unl.fct.di.apdc.firstwebapp.types.ProfileType;
@@ -38,7 +39,6 @@ public class ChangeAccountAttributesResource {
     private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
 
     private static final KeyFactory userKeyFactory = datastore.newKeyFactory().setKind("User");
-    private static final KeyFactory tokenKeyFactory = datastore.newKeyFactory().setKind("Token");
 
     private final Gson g = new Gson();
 
@@ -49,31 +49,19 @@ public class ChangeAccountAttributesResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response changeAttributes(ChangeAttributesData data) {
 
-        // Buscar o tokenID associado ao requesterUsername
-        Query<Entity> tokenQuery = Query.newEntityQueryBuilder()
-                .setKind("Token")
-                .setFilter(PropertyFilter.eq(TOKEN_USERNAME, data.requesterUsername))
-                .build();
-        QueryResults<Entity> allTokens = datastore.run(tokenQuery);
-
-        if (!allTokens.hasNext()) {
-            return Response.status(Status.FORBIDDEN)
-                    .entity(g.toJson("No active token found for requester."))
-                    .build();
-        }
-
-        Entity tokenEntity = allTokens.next();
-        String tokenID = tokenEntity.getKey().getName(); // Obtém o ID do token
-
-        // Verificar se o token é válido
-        if (!TokenValidator.isValidToken(tokenID)) {
-            return Response.status(Status.FORBIDDEN).entity("Invalid or expired token.").build();
-        }
         Transaction txn = datastore.newTransaction();
         try {
+            // Buscar o tokenID associado ao requesterUsername
+            TokenValidationResult validation =
+                    TokenValidator.validateToken(txn, datastore, data.requesterUsername);
+            if (validation.errorResponse != null) {
+                txn.rollback();
+                return validation.errorResponse;
+            }
+
             // Obter o token e o role do user que está a fazer a alteraçao
-            String requesterRole = tokenEntity.getString(TOKEN_ROLE);
-            String requesterUsername = tokenEntity.getString(TOKEN_USERNAME);
+            String requesterRole = validation.tokenEntity.getString(TOKEN_ROLE);
+            String requesterUsername = validation.tokenEntity.getString(TOKEN_USERNAME);
 
             //Para verificar o state do user que está a fazer o pedido
             Key requesterKey = userKeyFactory.newKey(requesterUsername);
@@ -112,7 +100,7 @@ public class ChangeAccountAttributesResource {
         } catch (Exception e) {
             txn.rollback();
             return Response.status(Status.INTERNAL_SERVER_ERROR).build();
-        }finally {
+        } finally {
             if (txn.isActive())
                 txn.rollback();
         }

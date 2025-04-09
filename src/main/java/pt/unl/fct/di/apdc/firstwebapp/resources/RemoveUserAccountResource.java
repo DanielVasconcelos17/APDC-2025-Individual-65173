@@ -10,6 +10,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import pt.unl.fct.di.apdc.firstwebapp.authentication.TokenValidator;
+import pt.unl.fct.di.apdc.firstwebapp.response.TokenValidationResult;
 import pt.unl.fct.di.apdc.firstwebapp.types.Role;
 import pt.unl.fct.di.apdc.firstwebapp.util.RemoveUserData;
 import com.google.cloud.datastore.StructuredQuery.PropertyFilter;
@@ -30,7 +31,6 @@ public class RemoveUserAccountResource {
     private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
 
     private static final KeyFactory userKeyFactory = datastore.newKeyFactory().setKind("User");
-    private static final KeyFactory tokenKeyFactory = datastore.newKeyFactory().setKind("Token");
 
     private final Gson g = new Gson();
 
@@ -41,63 +41,49 @@ public class RemoveUserAccountResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response removeUserAcc(RemoveUserData data) {
 
-        // Buscar o tokenID associado ao requesterUsername
-        Query<Entity> tokenQuery = Query.newEntityQueryBuilder()
-                .setKind("Token")
-                .setFilter(PropertyFilter.eq(TOKEN_USERNAME, data.requesterUsername))
-                .build();
-        QueryResults<Entity> allTokens = datastore.run(tokenQuery);
-
-        if (!allTokens.hasNext()) {
-            return Response.status(Response.Status.FORBIDDEN)
-                    .entity(g.toJson("No active token found for requester."))
-                    .build();
-        }
-
-        Entity tokenEntity = allTokens.next();
-        String tokenID = tokenEntity.getKey().getName(); // Obtém o ID do token
-
-        // Validação do token
-        if (!TokenValidator.isValidToken(tokenID)) {
-            return Response.status(Response.Status.FORBIDDEN)
-                    .entity(g.toJson("Invalid or expired token.")).build();
-        }
-
-        // Obter role do user que faz o pedido
-        String requesterRole = tokenEntity.getString(TOKEN_ROLE);
-
-        // Verificar se o target é o próprio root
-        if (data.targetUsername.equals("root"))
-            return Response.status(Response.Status.FORBIDDEN)
-                    .entity(g.toJson("Cannot remove root account.")).build();
-
-        Key userKey = userKeyFactory.newKey(data.targetUsername);
-        Entity targetUser = datastore.get(userKey);
-
-        if (targetUser == null)
-            return Response.status(Response.Status.NOT_FOUND)
-                    .entity(g.toJson("Target user not found.")).build();
-
-        String targetRole = targetUser.getString(USER_ROLE);
-
-        if (!requesterRole.equals(Role.ADMIN.getType())) {
-            if (requesterRole.equals(Role.BACKOFFICE.getType())) {
-                // BACKOFFICE só pode remover ENDUSER/PARTNER
-                if (!targetRole.equals(Role.ENDUSER.getType())
-                        && !targetRole.equals(Role.PARTNER.getType()))
-                    return Response.status(Response.Status.FORBIDDEN)
-                            .entity(g.toJson("BACKOFFICE can only remove " +
-                                    "ENDUSER/PARTNER accounts.")).build();
-            }
-            // Qualquer outra role não tem permissão
-            else
-                return Response.status(Response.Status.FORBIDDEN)
-                        .entity(g.toJson("You don't have permissions " +
-                                "to remove users.")).build();
-        }
-
         Transaction txn = datastore.newTransaction();
         try {
+            // Buscar o tokenID associado ao requesterUsername
+            TokenValidationResult validation =
+                    TokenValidator.validateToken(txn, datastore, data.requesterUsername);
+            if (validation.errorResponse != null) {
+                txn.rollback();
+                return validation.errorResponse;
+            }
+
+            // Obter role do user que faz o pedido
+            String requesterRole = validation.tokenEntity.getString(TOKEN_ROLE);
+
+            // Verificar se o target é o próprio root
+            if (data.targetUsername.equals("root"))
+                return Response.status(Response.Status.FORBIDDEN)
+                        .entity(g.toJson("Cannot remove root account.")).build();
+
+            Key userKey = userKeyFactory.newKey(data.targetUsername);
+            Entity targetUser = txn.get(userKey);
+
+            if (targetUser == null)
+                return Response.status(Response.Status.NOT_FOUND)
+                        .entity(g.toJson("Target user not found.")).build();
+
+            String targetRole = targetUser.getString(USER_ROLE);
+
+            if (!requesterRole.equals(Role.ADMIN.getType())) {
+                if (requesterRole.equals(Role.BACKOFFICE.getType())) {
+                    // BACKOFFICE só pode remover ENDUSER/PARTNER
+                    if (!targetRole.equals(Role.ENDUSER.getType())
+                            && !targetRole.equals(Role.PARTNER.getType()))
+                        return Response.status(Response.Status.FORBIDDEN)
+                                .entity(g.toJson("BACKOFFICE can only remove " +
+                                        "ENDUSER/PARTNER accounts.")).build();
+                }
+                // Qualquer outra role não tem permissão
+                else
+                    return Response.status(Response.Status.FORBIDDEN)
+                            .entity(g.toJson("You don't have permissions " +
+                                    "to remove users.")).build();
+            }
+
             // Remover tokens associados através do username
             Query<Entity> query = Query.newEntityQueryBuilder()
                     .setKind("Token")

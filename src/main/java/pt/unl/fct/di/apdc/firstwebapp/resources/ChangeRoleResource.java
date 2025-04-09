@@ -11,12 +11,12 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import pt.unl.fct.di.apdc.firstwebapp.authentication.TokenValidator;
+import pt.unl.fct.di.apdc.firstwebapp.response.TokenValidationResult;
 import pt.unl.fct.di.apdc.firstwebapp.response.UserFullListing;
 import pt.unl.fct.di.apdc.firstwebapp.types.Role;
 import pt.unl.fct.di.apdc.firstwebapp.types.UserDSFields;
 import pt.unl.fct.di.apdc.firstwebapp.util.ChangeRoleData;
 import com.google.cloud.datastore.StructuredQuery.PropertyFilter;
-
 
 
 @Path("/changeRole")
@@ -35,78 +35,65 @@ public class ChangeRoleResource {
     @Path("/")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response changeRole(ChangeRoleData data){
+    public Response changeRole(ChangeRoleData data) {
 
-        // Buscar o tokenID associado ao requesterUsername
-        Query<Entity> tokenQuery = Query.newEntityQueryBuilder()
-                .setKind("Token")
-                .setFilter(PropertyFilter.eq(TOKEN_USERNAME, data.requesterUsername))
-                .build();
-        QueryResults<Entity> allTokens = datastore.run(tokenQuery);
-
-        if (!allTokens.hasNext()) {
-            return Response.status(Status.FORBIDDEN)
-                    .entity(g.toJson("No active token found for requester."))
-                    .build();
-        }
-
-        Entity tokenEntity = allTokens.next();
-        String tokenID = tokenEntity.getKey().getName(); // Obtém o ID do token
-
-        // Validação do token
-        if (!TokenValidator.isValidToken(tokenID)) {
-            return Response.status(Response.Status.FORBIDDEN)
-                    .entity(g.toJson("Invalid or expired token.")).build();
-        }
-
-        // Obter o role do user que está a fazer o pedido
-        String requesterRole = tokenEntity.getString(TOKEN_ROLE);
-
-        if(!ChangeRoleData.isValidRole(requesterRole)
-                || !ChangeRoleData.isValidRole(data.newRole))
-            return Response.status(Status.FORBIDDEN)
-                    .entity(g.toJson("Not valid role has to be " +
-                            "one of these (ENDUSER, PARTNER, ADMIN, BACKOFFICE)"))
-                    .build();
-
-        // Verificar se o o user target existe
-        Key targetKey = datastore.newKeyFactory().setKind("User").newKey(data.targetUsername);
-        Entity targetEntity = datastore.get(targetKey);
-
-        if(targetEntity == null)
-            return Response.status(Status.NOT_FOUND)
-                    .entity(g.toJson("Target user not found."))
-                    .build();
-
-        // Obter a role do user target
-        String targetUserRole = targetEntity.getString(UserDSFields.USER_ROLE.toString());
-
-        // Verificar permissoes
-        if(requesterRole.equals(Role.ENDUSER.getType()))
-            return Response.status(Status.FORBIDDEN)
-                    .entity(g.toJson("ENDUSER cannot change roles."))
-                    .build();
-
-        // Verifica se o user que faz o pedido de mudança é BACKOFFICE
-        if(requesterRole.equals(Role.BACKOFFICE.getType())){
-            // Verifica se o user e o role a que vai ser
-            // alterado se são ENDUSER ou PARTNER
-            if(!targetUserRole.equals(Role.PARTNER.getType())
-                    && !targetUserRole.equals(Role.ENDUSER.getType())){
-                return Response.status(Status.FORBIDDEN)
-                        .entity(g.toJson("BACKOFFICE can only change" +
-                                " ENDUSER to PARTNER and vice-versa."))
-                        .build();
-            }
-            if(!data.newRole.equals(Role.PARTNER.getType())
-                    && !data.newRole.equals(Role.ENDUSER.getType())){
-                return Response.status(Status.FORBIDDEN)
-                        .entity(g.toJson("BACKOFFICE can only assign ENDUSER or PARTNER roles."))
-                        .build();
-            }
-        }
         Transaction txn = datastore.newTransaction();
-        try{
+        try {
+            // Buscar o tokenID associado ao requesterUsername
+            TokenValidationResult validation =
+                    TokenValidator.validateToken(txn, datastore, data.requesterUsername);
+            if (validation.errorResponse != null) {
+                txn.rollback();
+                return validation.errorResponse;
+            }
+
+            // Obter o role do user que está a fazer o pedido
+            String requesterRole = validation.tokenEntity.getString(TOKEN_ROLE);
+
+            if (!ChangeRoleData.isValidRole(requesterRole)
+                    || !ChangeRoleData.isValidRole(data.newRole))
+                return Response.status(Status.FORBIDDEN)
+                        .entity(g.toJson("Not valid role has to be " +
+                                "one of these (ENDUSER, PARTNER, ADMIN, BACKOFFICE)"))
+                        .build();
+
+            // Verificar se o o user target existe
+            Key targetKey = datastore.newKeyFactory().setKind("User").newKey(data.targetUsername);
+            Entity targetEntity = datastore.get(targetKey);
+
+            if (targetEntity == null)
+                return Response.status(Status.NOT_FOUND)
+                        .entity(g.toJson("Target user not found."))
+                        .build();
+
+            // Obter a role do user target
+            String targetUserRole = targetEntity.getString(UserDSFields.USER_ROLE.toString());
+
+            // Verificar permissoes
+            if (requesterRole.equals(Role.ENDUSER.getType()))
+                return Response.status(Status.FORBIDDEN)
+                        .entity(g.toJson("ENDUSER cannot change roles."))
+                        .build();
+
+            // Verifica se o user que faz o pedido de mudança é BACKOFFICE
+            if (requesterRole.equals(Role.BACKOFFICE.getType())) {
+                // Verifica se o user e o role a que vai ser
+                // alterado se são ENDUSER ou PARTNER
+                if (!targetUserRole.equals(Role.PARTNER.getType())
+                        && !targetUserRole.equals(Role.ENDUSER.getType())) {
+                    return Response.status(Status.FORBIDDEN)
+                            .entity(g.toJson("BACKOFFICE can only change" +
+                                    " ENDUSER to PARTNER and vice-versa."))
+                            .build();
+                }
+                if (!data.newRole.equals(Role.PARTNER.getType())
+                        && !data.newRole.equals(Role.ENDUSER.getType())) {
+                    return Response.status(Status.FORBIDDEN)
+                            .entity(g.toJson("BACKOFFICE can only assign ENDUSER or PARTNER roles."))
+                            .build();
+                }
+            }
+
             Entity updateUser = Entity.newBuilder(targetEntity)
                     .set(UserDSFields.USER_ROLE.toString()
                             , data.newRole).build();
@@ -130,11 +117,11 @@ public class ChangeRoleResource {
             UserFullListing view = new UserFullListing(updateUser);
             return Response.ok(g.toJson(view))
                     .build();
-        }catch (Exception e){
+        } catch (Exception e) {
             txn.rollback();
             return Response.status(Status.INTERNAL_SERVER_ERROR).build();
-        }finally {
-            if(txn.isActive())
+        } finally {
+            if (txn.isActive())
                 txn.rollback();
         }
     }
