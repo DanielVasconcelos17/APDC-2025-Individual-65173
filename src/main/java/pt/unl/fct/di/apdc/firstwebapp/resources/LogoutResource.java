@@ -36,13 +36,6 @@ public class LogoutResource {
 
         Transaction txn = datastore.newTransaction();
         try {
-            // Buscar o token associado ao username
-            TokenValidationResult validation =
-                    TokenValidator.validateToken(txn, datastore, data.username);
-            if (validation.errorResponse != null) {
-                txn.rollback();
-                return validation.errorResponse;
-            }
 
             Query<Entity> query = Query.newEntityQueryBuilder()
                     .setKind("Token")
@@ -50,6 +43,11 @@ public class LogoutResource {
                     .build();
 
             QueryResults<Entity> results = txn.run(query);
+
+            if(!results.hasNext())
+                return Response.status(Status.NOT_FOUND)
+                        .entity(g.toJson("Account already logged out."))
+                        .build();
 
             //Remove todos os tokens associados ao username em questao de forma a garantir o logout
             while(results.hasNext()){

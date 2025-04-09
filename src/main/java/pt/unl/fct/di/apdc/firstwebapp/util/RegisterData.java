@@ -1,6 +1,6 @@
 package pt.unl.fct.di.apdc.firstwebapp.util;
 
-import pt.unl.fct.di.apdc.firstwebapp.types.ProfileType;
+import pt.unl.fct.di.apdc.firstwebapp.enums.ProfileType;
 
 import java.util.regex.Pattern;
 

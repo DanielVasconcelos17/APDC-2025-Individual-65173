@@ -9,9 +9,9 @@ import jakarta.servlet.ServletContextEvent;
 import jakarta.servlet.ServletContextListener;
 import jakarta.servlet.annotation.WebListener;
 import org.apache.commons.codec.digest.DigestUtils;
-import pt.unl.fct.di.apdc.firstwebapp.types.ProfileState;
-import pt.unl.fct.di.apdc.firstwebapp.types.ProfileType;
-import pt.unl.fct.di.apdc.firstwebapp.types.Role;
+import pt.unl.fct.di.apdc.firstwebapp.enums.ProfileState;
+import pt.unl.fct.di.apdc.firstwebapp.enums.ProfileType;
+import pt.unl.fct.di.apdc.firstwebapp.enums.Role;
 
 //Esta classe tem a responsabilidade de registar o "root" no datastore quando a app dá deploy
 @WebListener

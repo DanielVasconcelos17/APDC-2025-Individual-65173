@@ -11,12 +11,9 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import pt.unl.fct.di.apdc.firstwebapp.authentication.TokenValidator;
 import pt.unl.fct.di.apdc.firstwebapp.response.TokenValidationResult;
-import pt.unl.fct.di.apdc.firstwebapp.types.Role;
+import pt.unl.fct.di.apdc.firstwebapp.enums.Role;
 import pt.unl.fct.di.apdc.firstwebapp.util.RemoveUserData;
 import com.google.cloud.datastore.StructuredQuery.PropertyFilter;
-
-
-import java.util.logging.Logger;
 
 @Path("/removeUser")
 @Produces(MediaType.APPLICATION_JSON)

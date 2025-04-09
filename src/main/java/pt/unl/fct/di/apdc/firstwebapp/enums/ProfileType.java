@@ -1,4 +1,4 @@
-package pt.unl.fct.di.apdc.firstwebapp.types;
+package pt.unl.fct.di.apdc.firstwebapp.enums;
 
 public enum ProfileType {
 
@@ -18,10 +18,9 @@ public enum ProfileType {
     public static ProfileType fromString(String type) {
         if (type == null) return null;
         for (ProfileType profile : ProfileType.values()) {
-            if (profile.getType().equalsIgnoreCase(type)) {
+            if (profile.getType().equalsIgnoreCase(type))
                 return profile;
-            }
         }
-        return null; // Se não encontrar correspondência
+        return null; // Se não encontrar
     }
 }

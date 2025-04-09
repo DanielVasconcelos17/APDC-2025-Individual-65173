@@ -20,9 +20,9 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 import pt.unl.fct.di.apdc.firstwebapp.authentication.EmailValidator;
-import pt.unl.fct.di.apdc.firstwebapp.types.ProfileState;
-import pt.unl.fct.di.apdc.firstwebapp.types.Role;
-import pt.unl.fct.di.apdc.firstwebapp.types.UserDSFields;
+import pt.unl.fct.di.apdc.firstwebapp.enums.ProfileState;
+import pt.unl.fct.di.apdc.firstwebapp.enums.Role;
+import pt.unl.fct.di.apdc.firstwebapp.enums.UserDSFields;
 import pt.unl.fct.di.apdc.firstwebapp.util.RegisterData;
 
 @Path("/register")
@@ -37,7 +37,6 @@ public class RegisterResource {
 
     public RegisterResource() {
     }
-
 
     @POST
     @Path("/")

@@ -1,7 +1,7 @@
 package pt.unl.fct.di.apdc.firstwebapp.response;
 
 import com.google.cloud.datastore.*;
-import pt.unl.fct.di.apdc.firstwebapp.types.UserDSFields;
+import pt.unl.fct.di.apdc.firstwebapp.enums.UserDSFields;
 
 
 public class UserFullListing extends UserBasicListing{

@@ -13,8 +13,8 @@ import jakarta.ws.rs.core.Response;
 import pt.unl.fct.di.apdc.firstwebapp.authentication.TokenValidator;
 import pt.unl.fct.di.apdc.firstwebapp.response.TokenValidationResult;
 import pt.unl.fct.di.apdc.firstwebapp.response.UserFullListing;
-import pt.unl.fct.di.apdc.firstwebapp.types.Role;
-import pt.unl.fct.di.apdc.firstwebapp.types.UserDSFields;
+import pt.unl.fct.di.apdc.firstwebapp.enums.Role;
+import pt.unl.fct.di.apdc.firstwebapp.enums.UserDSFields;
 import pt.unl.fct.di.apdc.firstwebapp.util.ChangeRoleData;
 import com.google.cloud.datastore.StructuredQuery.PropertyFilter;
 

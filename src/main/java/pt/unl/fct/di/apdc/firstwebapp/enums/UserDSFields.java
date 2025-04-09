@@ -1,4 +1,4 @@
-package pt.unl.fct.di.apdc.firstwebapp.types;
+package pt.unl.fct.di.apdc.firstwebapp.enums;
 
 public enum UserDSFields {
     // Campos básicos (herdados de UserBasicListing)

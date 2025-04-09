@@ -1,6 +1,6 @@
 package pt.unl.fct.di.apdc.firstwebapp.util;
 
-import pt.unl.fct.di.apdc.firstwebapp.types.Role;
+import pt.unl.fct.di.apdc.firstwebapp.enums.Role;
 
 public class ChangeRoleData {
     public String requesterUsername;

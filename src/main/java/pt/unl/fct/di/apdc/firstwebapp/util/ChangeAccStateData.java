@@ -1,6 +1,6 @@
 package pt.unl.fct.di.apdc.firstwebapp.util;
 
-import pt.unl.fct.di.apdc.firstwebapp.types.ProfileState;
+import pt.unl.fct.di.apdc.firstwebapp.enums.ProfileState;
 
 public class ChangeAccStateData {
 
