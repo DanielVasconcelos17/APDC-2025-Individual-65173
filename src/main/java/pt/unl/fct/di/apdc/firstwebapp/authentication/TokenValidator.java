@@ -79,6 +79,6 @@ public class TokenValidator {
         token.expirationData = tokenEntity.getLong(TOKEN_EXPIRATION_DATA);
         token.checker = tokenEntity.getString(TOKEN_CHECKER);
 
-        return token.isValid();
+        return token.isValid(tokenId);
     }
 }

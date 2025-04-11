@@ -101,6 +101,18 @@ public class LoginResource {
                         .entity(g.toJson(MESSAGE_INVALID_PASSWORD)).build();
             }
 
+            // Verificar e remover token existente, se houver
+            Query<Entity> tokenQuery = Query.newEntityQueryBuilder()
+                    .setKind("Token")
+                    .setFilter(PropertyFilter.eq(TOKEN_USERNAME, data.identifier))
+                    .build();
+            QueryResults<Entity> existingTokens = txn.run(tokenQuery);
+
+            while (existingTokens.hasNext()) {
+                Entity existingToken = existingTokens.next();
+                txn.delete(existingToken.getKey());
+            }
+
             String userRole = user.getString(UserDSFields.USER_ROLE.toString());
             AuthToken token = new AuthToken(data.identifier, userRole);
 

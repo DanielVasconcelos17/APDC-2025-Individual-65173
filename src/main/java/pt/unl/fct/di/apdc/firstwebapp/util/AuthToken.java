@@ -30,7 +30,12 @@ public class AuthToken {
 		return DigestUtils.sha512Hex(username+creationData+expirationData);
 	}
 
-	public boolean isValid() {
+	public boolean isValid(String expectedTokenID) {
+		// Verifica o tokenID
+		if (!this.tokenID.equals(expectedTokenID)) {
+			return false;
+		}
+
 		String expectedChecker = createChecker();
 		return System.currentTimeMillis() <= expirationData
 				&& checker.equals(expectedChecker);
