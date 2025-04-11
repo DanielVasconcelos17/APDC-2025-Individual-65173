@@ -47,7 +47,7 @@ public class WorkSheetResource {
     @POST
     @Path("/create")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response createWorkSheet(WorkSheetData data) {
+    public Response createOrUpdateWorkSheet(WorkSheetData data) {
 
         Transaction txn = datastore.newTransaction();
         try {
@@ -70,12 +70,26 @@ public class WorkSheetResource {
                         .build();
 
             Key worksheetKey = worksheetKeyFactory.newKey(data.reference);
-            //Cria a folha de obra (worksheet) na datastore
-            Entity.Builder worksheetBuilder = Entity.newBuilder(worksheetKey)
-                    .set(WORKSHEET_REFERENCE, data.reference)
-                    .set(WORKSHEET_DESCRIPTION, data.description)
-                    .set(WORKSHEET_TARGET_TYPE, data.targetType)
-                    .set(WORKSHEET_ADJUDICATION_STATE, data.adjudicationState);
+            Entity existingWorksheet = txn.get(worksheetKey);
+
+            //Cria a folha de obra (worksheet) na datastore ou atualiza caso já exista
+            Entity.Builder worksheetBuilder;
+            if (existingWorksheet != null) {
+                //Atualizaçao da worksheet existente
+                worksheetBuilder = Entity.newBuilder(existingWorksheet);
+
+                worksheetBuilder
+                        .set(WORKSHEET_DESCRIPTION, data.description)
+                        .set(WORKSHEET_TARGET_TYPE, data.targetType)
+                        .set(WORKSHEET_ADJUDICATION_STATE, data.adjudicationState);
+            } else {
+                //Criaçao de nova worksheet
+                worksheetBuilder = Entity.newBuilder(worksheetKey)
+                        .set(WORKSHEET_REFERENCE, data.reference)
+                        .set(WORKSHEET_DESCRIPTION, data.description)
+                        .set(WORKSHEET_TARGET_TYPE, data.targetType)
+                        .set(WORKSHEET_ADJUDICATION_STATE, data.adjudicationState);
+            }
 
             // Atributos adicionais
             if (data.adjudicationDate != null) worksheetBuilder.set(WORKSHEET_ADJUDICATION_DATE, data.adjudicationDate);
